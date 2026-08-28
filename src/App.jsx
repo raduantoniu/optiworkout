@@ -605,16 +605,19 @@ const StepBar = ({current, total}) => (
 
 // Landscape before/after frame. Renders the real image when one exists,
 // otherwise a labelled two-panel placeholder so the layout is already correct.
+// Exercise images are 1000 x 600 (5:3). The frame matches that ratio exactly,
+// and object-contain guarantees the whole movement stays visible even if an
+// image is exported at a slightly different size.
 const ExerciseImage = ({exId, className=''}) => {
   const [failed, setFailed] = useState(false);
   const name = EXERCISES[exId][0];
   if (failed) return (
-    <div className={`rounded-lg border border-stone-200 bg-stone-100 aspect-[2/1] ${className}`} />
+    <div className={`rounded-lg border border-stone-200 bg-stone-100 aspect-[5/3] ${className}`} />
   );
   return (
-    <div className={`rounded-lg overflow-hidden bg-stone-100 border border-stone-200 ${className}`}>
+    <div className={`rounded-lg overflow-hidden bg-white border border-stone-200 aspect-[5/3] ${className}`}>
       <img src={imageFor(exId)} alt={name} onError={() => setFailed(true)}
-        className="w-full aspect-[2/1] object-cover" />
+        className="w-full h-full object-contain" />
     </div>
   );
 };
@@ -879,7 +882,7 @@ function SwapMenu({row, prog, di, ri, owned, onPick, onClose}){
         className={`w-full text-left p-3 rounded-xl border transition-colors flex gap-3 ${
           current ? 'border-orange-500 bg-orange-50 cursor-default'
                   : 'border-stone-200 hover:border-orange-500 hover:bg-orange-50'}`}>
-        <ExerciseImage exId={id} className="w-28 flex-shrink-0" />
+        <ExerciseImage exId={id} className="w-28 sm:w-32 flex-shrink-0" />
         <div className="min-w-0 flex-1">
           <div className="text-sm font-medium text-stone-900">{EXERCISES[id][0]}</div>
           <div className="text-xs mt-1 leading-relaxed">
@@ -934,7 +937,7 @@ const ExerciseRow = ({row, onSwap, detailed}) => {
   const isAmrap = row.range === 'AMRAP';
   return (
     <div className="flex gap-3 px-4 py-3">
-      <ExerciseImage exId={row.exId} className="w-24 sm:w-32 flex-shrink-0" />
+      <ExerciseImage exId={row.exId} className="w-28 sm:w-36 flex-shrink-0" />
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-3">
           <div className="text-sm font-medium text-stone-900 leading-snug">
