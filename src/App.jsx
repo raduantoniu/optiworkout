@@ -23,7 +23,7 @@ import { ArrowRight, ArrowLeft, Check, Copy, X, AlertTriangle, BookOpen, Loader2
 // =====================================================
 const EQ = {
   BARBELL:'barbell', DUMBBELLS:'dumbbells', EZ_BAR:'ez bar', TRAP_BAR:'trap bar',
-  RACK:'squat rack', FLAT_BENCH:'flat bench station', ADJ_BENCH:'adjustable bench',
+  RACK:'adjustable rack', FLAT_BENCH:'flat bench station', ADJ_BENCH:'adjustable bench',
   INCLINE_STATION:'incline bench station',
   CABLE:'cable station', LAT_PULLDOWN:'lat pulldown (cable)',
   PULLUP_BAR:'pull-up bar', NEUTRAL_BARS:'neutral grip bars', WEIGHT_BELT:'weight belt',
@@ -54,22 +54,22 @@ const EQ = {
 // =====================================================
 const EXERCISES = {
   // SQUAT
-  HACK_SQUAT:['Hack Squat',[EQ.HACK]],
-  PENDULUM_SQUAT:['Pendulum Squat',[EQ.PENDULUM]],
-  LEG_PRESS:['Leg Press',[EQ.LEG_PRESS_M]],
-  SQUAT_SMITH:['Smith Machine Squat',[EQ.SMITH]],
-  SQUAT_BACK:['Back Squat',[EQ.BARBELL,EQ.RACK]],
-  SQUAT_FRONT:['Front Squat',[EQ.BARBELL,EQ.RACK]],
-  SPLIT_SQUAT_BULG:['Bulgarian Split Squat',[EQ.DUMBBELLS],{db:true}],
+  HACK_SQUAT:['Hack Squat',[EQ.HACK],{primary:true}],
+  PENDULUM_SQUAT:['Pendulum Squat',[EQ.PENDULUM],{primary:true}],
+  LEG_PRESS:['Leg Press',[EQ.LEG_PRESS_M],{primary:true}],
+  SQUAT_SMITH:['Smith Machine Squat',[EQ.SMITH],{primary:true}],
+  SQUAT_BACK:['Back Squat',[EQ.BARBELL,EQ.RACK],{primary:true}],
+  SQUAT_FRONT:['Front Squat',[EQ.BARBELL,EQ.RACK],{primary:true}],
+  SPLIT_SQUAT_BULG:['Bulgarian Split Squat',[EQ.DUMBBELLS],{primary:true,db:true}],
   // HINGE
-  RDL_LEVER:['Romanian Deadlift (Lever Arms)',[EQ.LEVER_ARMS]],
-  RDL_TRAP:['Romanian Deadlift (Trap Bar)',[EQ.TRAP_BAR]],
+  RDL_LEVER:['Romanian Deadlift (Lever Arms)',[EQ.LEVER_ARMS],{primary:true}],
+  RDL_TRAP:['Romanian Deadlift (Trap Bar)',[EQ.TRAP_BAR],{primary:true}],
   BACK_EXT_WTD:['Weighted Back Extension',[EQ.ROMAN_CHAIR,EQ.PLATE]],
-  RDL_LANDMINE:['Romanian Deadlift (Landmine)',[EQ.LANDMINE,EQ.BARBELL]],
-  RDL_SMITH:['Romanian Deadlift (Smith)',[EQ.SMITH]],
-  RDL_BB:['Romanian Deadlift (Barbell)',[EQ.BARBELL]],
-  RDL_CABLE:['Romanian Deadlift (Cable)',[EQ.CABLE]],
-  RDL_DB:['Romanian Deadlift (Dumbbell)',[EQ.DUMBBELLS],{db:true}],
+  RDL_LANDMINE:['Romanian Deadlift (Landmine)',[EQ.LANDMINE,EQ.BARBELL],{primary:true}],
+  RDL_SMITH:['Romanian Deadlift (Smith)',[EQ.SMITH],{primary:true}],
+  RDL_BB:['Romanian Deadlift (Barbell)',[EQ.BARBELL],{primary:true}],
+  RDL_CABLE:['Romanian Deadlift (Cable)',[EQ.CABLE],{primary:true}],
+  RDL_DB:['Romanian Deadlift (Dumbbell)',[EQ.DUMBBELLS],{primary:true,db:true}],
   // GLUTE
   HIP_THRUST_BB:['Barbell Hip Thrust (Hip Thrust Station)',[EQ.HIP_THRUST_STATION,EQ.BARBELL]],
   HIP_THRUST_MACH:['Hip Thrust (Machine)',[EQ.HIP_THRUST_M]],
@@ -78,13 +78,13 @@ const EXERCISES = {
   HIP_THRUST_DB_1L:['Single-Leg Hip Thrust (Dumbbell)',[EQ.DUMBBELLS,EQ.FLAT_BENCH],{db:true,sa:true}],
   // LEG_EXT
   LEG_EXT:['Leg Extension',[EQ.LEG_EXT_M]],
-  REVERSE_NORDIC:['Band-Assisted Reverse Nordic Curl',[EQ.BANDS]],
+  REVERSE_NORDIC:['Band-Assisted Reverse Nordic Curl',[EQ.BANDS],{lastResort:true}],
   SISSY_SQUAT:['Sissy Squat',[]],
   // LEG_CURL
   LEG_CURL_SEATED:['Seated Leg Curl',[EQ.LEG_CURL_SEATED_M]],
   LEG_CURL_LYING:['Lying Leg Curl',[EQ.LEG_CURL_LYING_M]],
   LEG_CURL_KNEELING:['Kneeling Leg Curl (Machine)',[EQ.LEG_CURL_KNEELING_M]],
-  NORDIC_BAND:['Band-Assisted Nordic Curl',[EQ.BANDS]],
+  NORDIC_BAND:['Band-Assisted Nordic Curl',[EQ.BANDS],{lastResort:true}],
   // CALF
   CALF_STRAIGHT_M:['Seated Straight-Leg Calf Raise (Machine)',[EQ.CALF_SEATED_STRAIGHT_M]],
   CALF_STANDING_MACH:['Standing Calf Raise (Machine)',[EQ.CALF_STANDING_M]],
@@ -94,20 +94,20 @@ const EXERCISES = {
   CALF_SEATED:['Seated Calf Raise',[EQ.CALF_SEATED_M]],
   CALF_SL_BW:['Single-Leg Calf Raise (Bodyweight)',[],{sa:true}],
   // INCLINE_PRESS
-  INC_BB_30:['30° Incline Barbell Press',[EQ.BARBELL,EQ.INCLINE_STATION]],
-  INC_BB_15:['15° Incline Barbell Press',[EQ.BARBELL,EQ.RACK,EQ.ADJ_BENCH]],
-  INC_DB_30:['30° Incline Dumbbell Press',[EQ.DUMBBELLS,EQ.ADJ_BENCH],{db:true}],
-  INC_DB_15:['15° Incline Dumbbell Press',[EQ.DUMBBELLS,EQ.ADJ_BENCH],{db:true}],
+  INC_BB_30:['30° Incline Barbell Press',[EQ.BARBELL,EQ.INCLINE_STATION],{primary:true}],
+  INC_BB_15:['15° Incline Barbell Press',[EQ.BARBELL,EQ.RACK,EQ.ADJ_BENCH],{primary:true}],
+  INC_DB_30:['30° Incline Dumbbell Press',[EQ.DUMBBELLS,EQ.ADJ_BENCH],{primary:true,db:true}],
+  INC_DB_15:['15° Incline Dumbbell Press',[EQ.DUMBBELLS,EQ.ADJ_BENCH],{primary:true,db:true}],
   INC_PRESS_MACH:['Incline Chest Press (Plate-Loaded)',[EQ.INCLINE_PRESS_M]],
   INC_PRESS_MACH_STACK:['Incline Chest Press (Stack-Loaded)',[EQ.INCLINE_PRESS_M]],
   INC_PRESS_SMITH:['Smith Machine Incline Bench Press',[EQ.SMITH,EQ.ADJ_BENCH]],
   // FLAT_PRESS
-  BENCH_BB:['Barbell Bench Press',[EQ.BARBELL,EQ.RACK,EQ.FLAT_BENCH]],
+  BENCH_BB:['Barbell Bench Press',[EQ.BARBELL,EQ.RACK,EQ.FLAT_BENCH],{primary:true}],
   CHEST_PRESS_MACH:['Vertical Chest Press (Machine)',[EQ.CHEST_PRESS_M]],
   CHEST_PRESS_FLAT_MACH:['Flat Chest Press (Machine)',[EQ.CHEST_PRESS_M]],
   CHEST_PRESS_NEUTRAL_MACH:['Chest Press (Machine, Neutral Grip)',[EQ.CHEST_PRESS_M]],
   BENCH_SMITH:['Flat Bench Press (Smith Machine)',[EQ.SMITH,EQ.FLAT_BENCH]],
-  BENCH_DB_FLAT:['Flat Dumbbell Bench Press',[EQ.DUMBBELLS,EQ.FLAT_BENCH],{db:true}],
+  BENCH_DB_FLAT:['Flat Dumbbell Bench Press',[EQ.DUMBBELLS,EQ.FLAT_BENCH],{primary:true,db:true}],
   // CHEST_ISO
   DB_FLY_PRESS:['DB Fly-Press',[EQ.DUMBBELLS,EQ.FLAT_BENCH],{db:true}],
   DB_FLY_PRESS_INC:['Incline DB Fly-Press',[EQ.DUMBBELLS,EQ.ADJ_BENCH],{db:true}],
@@ -117,29 +117,29 @@ const EXERCISES = {
   CHEST_FLY_CABLE:['Seated Cable Fly',[EQ.CABLE,EQ.ADJ_BENCH]],
   CHEST_FLY_CABLE_STAND:['Standing Cable Fly',[EQ.CABLE]],
   // VERT_PUSH
-  SHLDR_PRESS_DB:['Seated DB Shoulder Press',[EQ.DUMBBELLS,EQ.ADJ_BENCH],{db:true}],
-  VIKING_PRESS:['Viking Shoulder Press',[EQ.VIKING]],
+  SHLDR_PRESS_DB:['Seated DB Shoulder Press',[EQ.DUMBBELLS,EQ.ADJ_BENCH],{primary:true,db:true}],
+  VIKING_PRESS:['Viking Shoulder Press',[EQ.VIKING],{primary:true}],
   SHLDR_PRESS_MACH:['Shoulder Press (Plate-Loaded)',[EQ.SHOULDER_PRESS_M]],
   SHLDR_PRESS_MACH_STACK:['Shoulder Press (Stack-Loaded)',[EQ.SHOULDER_PRESS_M]],
-  OHP_BB:['Standing Overhead Press',[EQ.BARBELL,EQ.RACK]],
+  OHP_BB:['Standing Overhead Press',[EQ.BARBELL,EQ.RACK],{primary:true}],
   SHLDR_PRESS_SMITH:['Seated Shoulder Press (Smith)',[EQ.SMITH,EQ.ADJ_BENCH]],
   SHLDR_PRESS_DB_1A:['Standing One-Arm DB Press',[EQ.DUMBBELLS],{db:true,sa:true}],
   // HORIZ_PULL
   ROW_TBAR_CS:['Chest-Supported T-Bar Row',[EQ.TBAR_M]],
   ROW_CS_MACH:['Chest-Supported Row (Plate-Loaded)',[EQ.ROW_CS_M]],
   ROW_CS_MACH_STACK:['Chest-Supported Row (Stack-Loaded)',[EQ.ROW_CS_M]],
-  ROW_SEAL:['Seal Row (Barbell)',[EQ.SEAL_BENCH,EQ.BARBELL]],
+  ROW_SEAL:['Seal Row (Barbell)',[EQ.SEAL_BENCH,EQ.BARBELL],{primary:true}],
   ROW_CABLE_SEATED:['Seated Cable Row',[EQ.CABLE]],
   ROW_CABLE_CS_1A:['Single-Arm Chest-Supported Cable Row',[EQ.CABLE,EQ.ADJ_BENCH],{sa:true}],
   ROW_CABLE_CS:['Chest-Supported Row (Cable)',[EQ.CABLE,EQ.ADJ_BENCH]],
-  ROW_PENDLAY:['Pendlay Row',[EQ.BARBELL]],
+  ROW_PENDLAY:['Pendlay Row',[EQ.BARBELL],{primary:true}],
   ROW_DB_CS:['Chest-Supported Dumbbell Row',[EQ.DUMBBELLS,EQ.ADJ_BENCH],{db:true}],
   ROW_DB_1A:['Single-Arm Dumbbell Row',[EQ.DUMBBELLS],{db:true,sa:true}],
   ROW_INVERTED:['Feet-Elevated Inverted Row',[EQ.BARBELL,EQ.RACK],{amrap:true}],
   // VERT_PULL
-  PULLUP_NEUTRAL_W:['Weighted Neutral-Grip Pull-up',[EQ.NEUTRAL_BARS,EQ.WEIGHT_BELT]],
-  CHINUP_W:['Weighted Chin-up',[EQ.PULLUP_BAR,EQ.WEIGHT_BELT]],
-  PULLUP_W:['Weighted Pull-up',[EQ.PULLUP_BAR,EQ.WEIGHT_BELT]],
+  PULLUP_NEUTRAL_W:['Weighted Neutral-Grip Pull-up',[EQ.NEUTRAL_BARS,EQ.WEIGHT_BELT],{primary:true}],
+  CHINUP_W:['Weighted Chin-up',[EQ.PULLUP_BAR,EQ.WEIGHT_BELT],{primary:true}],
+  PULLUP_W:['Weighted Pull-up',[EQ.PULLUP_BAR,EQ.WEIGHT_BELT],{primary:true}],
   PULLDOWN_CABLE:['Lat Pulldown (Cable)',[EQ.LAT_PULLDOWN]],
   PULLDOWN_CABLE_1A:['Single-Arm Lat Pulldown (Cable)',[EQ.LAT_PULLDOWN],{sa:true}],
   PULLDOWN_MACH:['Lat Pulldown (Plate-Loaded)',[EQ.PULLDOWN_M]],
@@ -151,6 +151,7 @@ const EXERCISES = {
   SHRUG_MACH:['Shrug (Machine)',[EQ.SHRUG_M]],
   SHRUG_SMITH:['Shrug (Smith Machine)',[EQ.SMITH]],
   SHRUG_TRAP:['Shrug (Trap Bar)',[EQ.TRAP_BAR]],
+  SHRUG_BB:['Behind-the-Back Barbell Shrug',[EQ.BARBELL,EQ.RACK]],
   SHRUG_DB:['Shrug (Dumbbell)',[EQ.DUMBBELLS],{db:true}],
   SHRUG_KELSO:['Kelso Shrug (Machine)',[EQ.ROW_CS_M]],
   // SIDE_DELT
@@ -210,7 +211,7 @@ const POOLS = {
   VERT_PUSH:['SHLDR_PRESS_DB','VIKING_PRESS','OHP_BB','SHLDR_PRESS_MACH','SHLDR_PRESS_MACH_STACK','SHLDR_PRESS_SMITH','SHLDR_PRESS_DB_1A'],
   HORIZ_PULL:['ROW_TBAR_CS','ROW_CS_MACH','ROW_CS_MACH_STACK','ROW_SEAL','ROW_CABLE_SEATED','ROW_CABLE_CS_1A','ROW_CABLE_CS','ROW_PENDLAY','ROW_DB_CS','ROW_DB_1A','ROW_INVERTED'],
   VERT_PULL:['CHINUP_W','PULLUP_NEUTRAL_W','PULLUP_W','PULLDOWN_CABLE','PULLDOWN_CABLE_1A','PULLDOWN_MACH','PULLDOWN_MACH_STACK','PULLDOWN_MACH_1A','PULLUP_BAND','PULLOVER_DB'],
-  TRAPS:['SHRUG_MACH','SHRUG_SMITH','SHRUG_TRAP','SHRUG_DB','SHRUG_KELSO'],
+  TRAPS:['SHRUG_MACH','SHRUG_SMITH','SHRUG_TRAP','SHRUG_BB','SHRUG_DB','SHRUG_KELSO'],
   SIDE_DELT:['LAT_RAISE_MACH','CUBAN_PRESS','LAT_RAISE_DB','LAT_RAISE_CBL_BTB','LAT_RAISE_CABLE'],
   REAR_DELT:['REAR_DELT_MACH','REAR_DELT_CBL_1A','FACE_PULL_CABLE','REAR_DELT_DB_30'],
   TRI_OH:['TRI_OH_CABLE','TRI_OH_CABLE_1A','SKULLCRUSHER_BB','TRI_OH_DB','TRI_OH_DB_INC'],
@@ -238,19 +239,51 @@ const PATTERN_LABEL = {
 // =====================================================
 // RESOLVER
 // =====================================================
-function canEquip(exId, owned){ return EXERCISES[exId][1].every(r => owned.has(r)); }
+// Some kit stands in for other kit. An adjustable bench set flat IS a flat
+// bench, so someone who owns one shouldn't be told they can't bench press.
+// Keyed by the requirement, valued by everything that also satisfies it.
+const SATISFIED_BY = {
+  [EQ.FLAT_BENCH]: [EQ.ADJ_BENCH],
+  [EQ.INCLINE_STATION]: [EQ.ADJ_BENCH, EQ.RACK],
+};
 
-function resolveSlot(pattern, owned, vetoed, usedThisWeek){
-  const ok = (id,{allowRepeat=false}={}) => {
+function has(owned, req){
+  if (owned.has(req)) return true;
+  const alts = SATISFIED_BY[req];
+  if (!alts) return false;
+  // multi-item stand-ins need every part (rack + adjustable bench for an incline station)
+  if (req === EQ.INCLINE_STATION) return owned.has(EQ.ADJ_BENCH) && owned.has(EQ.RACK);
+  return alts.some(a => owned.has(a));
+}
+
+function canEquip(exId, owned){ return EXERCISES[exId][1].every(r => has(owned, r)); }
+
+// A slot is SECONDARY when it's the 2nd+ push, pull, squat or hinge of that
+// session. Two flags shape what can fill it:
+//   primary    - high skill, high fatigue, needs to be done fresh. Kept out of
+//                secondary slots unless there's genuinely nothing else.
+//   lastResort - only when nothing else works at all, repeats included.
+function resolveSlot(pattern, owned, vetoed, usedThisWeek, isSecondary=false){
+  const ok = (id,{allowRepeat=false, allowPrimary=false, allowLastResort=false}={}) => {
     if (vetoed.has(id)) return false;
     if (!canEquip(id,owned)) return false;
+    const f = EXERCISES[id][2] || {};
+    if (f.primary && isSecondary && !allowPrimary) return false;
+    if (f.lastResort && !allowLastResort) return false;
     if (!allowRepeat && usedThisWeek.has(id)) return false;
     return true;
   };
   const scan = (list,opts) => { for (const id of list) if (ok(id,opts)) return id; return null; };
   const own = POOLS[pattern];
   const fb = POOL_FALLBACK[pattern] ? POOLS[POOL_FALLBACK[pattern]] : [];
-  return scan(own,{}) || scan(fb,{}) || scan(own,{allowRepeat:true}) || scan(fb,{allowRepeat:true}) || null;
+  return scan(own,{})                                                      // best fit, unused
+      || scan(fb,{})                                                       // borrow from fallback pool
+      || scan(own,{allowRepeat:true})                                      // repeat rather than downgrade
+      || scan(fb,{allowRepeat:true})
+      || scan(own,{allowPrimary:true})                                     // no choice: use a primary lift
+      || scan(own,{allowPrimary:true, allowRepeat:true})
+      || scan(own,{allowPrimary:true, allowRepeat:true, allowLastResort:true})
+      || null;
 }
 
 // =====================================================
@@ -396,14 +429,43 @@ const SKELETONS_BY_DAYS = days => Object.entries(SKELETONS).filter(([,s]) => s.d
 // =====================================================
 function buildProgram(skelId, owned, vetoed = new Set()){
   const skel = SKELETONS[skelId];
-  const usedThisWeek = new Set();
-  const unserviceable = [];
-  const days = skel.days.map(day => {
+
+  // Flatten the week and mark which slots are secondary. This depends only on
+  // the skeleton's slot order, not on what ends up filling them.
+  const flat = [];
+  skel.days.forEach((day, di) => {
     const counters = {};
-    const rows = day.slots.map(slot => {
-      const exId = resolveSlot(slot.pattern, owned, vetoed, usedThisWeek);
-      if (!exId){ unserviceable.push(slot.pattern); return {slot, exId:null, range:null, rest:null}; }
-      usedThisWeek.add(exId);
+    day.slots.forEach((slot, ri) => {
+      const key = GROUP[slot.pattern] || slot.pattern;
+      let isSecondary = false;
+      if (SECONDARY_KEYS.has(key)){
+        counters[key] = (counters[key] || 0) + 1;
+        isSecondary = counters[key] >= 2;
+      }
+      flat.push({ di, ri, slot, isSecondary });
+    });
+  });
+
+  // Resolve every primary slot before any secondary one, so the best exercise
+  // in a pool lands in the slot that can actually do it justice rather than
+  // whichever day happens to come first in the week.
+  const order = [...flat.filter(f => !f.isSecondary), ...flat.filter(f => f.isSecondary)];
+  const usedThisWeek = new Set();
+  const picked = {};
+  const unserviceable = [];
+  for (const f of order){
+    const exId = resolveSlot(f.slot.pattern, owned, vetoed, usedThisWeek, f.isSecondary);
+    if (!exId){ unserviceable.push(f.slot.pattern); continue; }
+    usedThisWeek.add(exId);
+    picked[`${f.di}:${f.ri}`] = exId;
+  }
+
+  // Rebuild in reading order and compute rep ranges per session.
+  const days = skel.days.map((day, di) => {
+    const counters = {};
+    const rows = day.slots.map((slot, ri) => {
+      const exId = picked[`${di}:${ri}`];
+      if (!exId) return { slot, exId:null, range:null, rest:null };
       return { slot, exId, range: computeRange(slot.pattern, exId, counters), rest: REST[slot.pattern] };
     });
     return { name: day.name, rows };
@@ -542,27 +604,34 @@ const EQUIPMENT_GROUPS = [
 ];
 
 const PRESET_FULL = new Set(Object.values(EQ));
+// A well-equipped commercial gym, but not a specialist one. No seated
+// straight-leg calf machine, no pendulum, no hack squat, no lever arms.
 const PRESET_MID = new Set([
   EQ.BARBELL,EQ.DUMBBELLS,EQ.EZ_BAR,EQ.RACK,EQ.FLAT_BENCH,EQ.ADJ_BENCH,EQ.INCLINE_STATION,
   EQ.CABLE,EQ.LAT_PULLDOWN,EQ.PULLUP_BAR,EQ.WEIGHT_BELT,EQ.SMITH,EQ.LEG_PRESS_M,EQ.LEG_EXT_M,
-  EQ.LEG_CURL_SEATED_M,EQ.CALF_STANDING_M,EQ.CALF_SEATED_STRAIGHT_M,EQ.CHEST_PRESS_M,EQ.PEC_DECK,EQ.SHOULDER_PRESS_M,
-  EQ.LAT_RAISE_M,EQ.REAR_DELT_M,EQ.ROW_CS_M,EQ.CRUNCH_M,EQ.STEPPER,EQ.PLATE,EQ.BANDS,
+  EQ.LEG_CURL_SEATED_M,EQ.LEG_CURL_KNEELING_M,EQ.CALF_STANDING_M,EQ.CALF_SEATED_M,
+  EQ.CHEST_PRESS_M,EQ.PEC_DECK,EQ.SHOULDER_PRESS_M,EQ.LAT_RAISE_M,EQ.REAR_DELT_M,
+  EQ.ROW_CS_M,EQ.CRUNCH_M,EQ.ROMAN_CHAIR,EQ.CAPTAINS_CHAIR,EQ.STEPPER,EQ.PLATE,EQ.BANDS,
 ]);
+// No dedicated flat bench station — an adjustable bench set flat covers
+// everything, and SATISFIED_BY makes the swap for us.
 const PRESET_GARAGE = new Set([
-  EQ.BARBELL,EQ.DUMBBELLS,EQ.RACK,EQ.FLAT_BENCH,EQ.ADJ_BENCH,EQ.PULLUP_BAR,
+  EQ.BARBELL,EQ.DUMBBELLS,EQ.RACK,EQ.ADJ_BENCH,EQ.PULLUP_BAR,
   EQ.WEIGHT_BELT,EQ.PLATE,EQ.STEPPER,EQ.BANDS,
 ]);
 
 // =====================================================
 // UI PRIMITIVES — matched to the ShredSmart suite
 // =====================================================
-const Shell = ({children}) => (
+// Long screens (the program list) hang from the top; short ones (loading,
+// errors) sit centred the way PhysiquePlan does.
+const Shell = ({children, center=false}) => (
   <div className="min-h-screen bg-stone-50 flex flex-col">
     <header className="w-full px-6 py-4 flex items-center justify-between border-b border-stone-200 bg-white">
       <span className="font-semibold text-stone-900 tracking-tight">ShredSmart™</span>
       <span className="text-xs text-stone-500 tracking-wider">OptiWorkout™</span>
     </header>
-    <main className="flex-1 flex items-start justify-center px-4 py-8">{children}</main>
+    <main className={`flex-1 flex ${center ? 'items-center' : 'items-start'} justify-center px-4 py-8`}>{children}</main>
     <footer className="w-full px-6 py-4 border-t border-stone-200 bg-white text-xs text-stone-500 flex justify-between">
       <span>ShredSmart™</span><span>OptiWorkout™</span>
     </footer>
@@ -980,6 +1049,25 @@ const LoadingScreen = ({ message = 'Building your program...' }) => (
   </Card>
 );
 
+// Shown whenever a client's equipment can't fill one or more slots. The app
+// says so plainly and points them to Radu rather than inventing a bad exercise.
+const GapNotice = ({holes}) => {
+  if (!holes.length) return null;
+  const list = holes.map(h => (PATTERN_LABEL[h] || h).toLowerCase());
+  const joined = list.length === 1 ? list[0]
+    : list.slice(0,-1).join(', ') + ' or ' + list[list.length-1];
+  return (
+    <div className="mt-5 bg-orange-50 border border-orange-200 rounded-xl p-4 flex gap-3">
+      <AlertTriangle className="w-4 h-4 text-orange-600 flex-shrink-0 mt-0.5" />
+      <p className="text-sm text-stone-700 leading-relaxed">
+        Your equipment can't cover {joined}. The rest of the program is complete and you can
+        start training on it. Message Radu in the ShredSmart community and he'll work out a
+        solution for your setup.
+      </p>
+    </div>
+  );
+};
+
 function ReviewScreen({prog, owned, onSwapAt, onBack, onAccept}){
   const [swap, setSwap] = useState(null);
   const holes = prog.unserviceable;
@@ -996,15 +1084,7 @@ function ReviewScreen({prog, owned, onSwapAt, onBack, onAccept}){
           so try to choose from the top of the list if possible.
         </p>
 
-        {holes.length > 0 && (
-          <div className="mt-5 bg-orange-50 border border-orange-200 rounded-xl p-4 flex gap-3">
-            <AlertTriangle className="w-4 h-4 text-orange-600 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-stone-700 leading-relaxed">
-              Your setup can't cover {holes.map(h => (PATTERN_LABEL[h]||h).toLowerCase()).join(' or ')}.
-              The program runs without it. Everything else is covered.
-            </p>
-          </div>
-        )}
+        <GapNotice holes={holes} />
 
         <div className="mt-6 space-y-6">
           {prog.days.map((d, di) => (
@@ -1060,6 +1140,8 @@ function FinalScreen({prog, seq, owned, onSwapAt, onInstructions, onRestart}){
             {copied ? <><Check className="w-4 h-4" /> Copied</> : <><Copy className="w-4 h-4" /> Copy code</>}
           </button>
         </div>
+
+        <GapNotice holes={prog.unserviceable || []} />
 
         {seq > 1 && (
           <div className="mt-4 bg-orange-50 border border-orange-200 rounded-xl p-4">
@@ -1347,5 +1429,7 @@ export default function App(){
       body = <HomeScreen onContinue={() => setScreen('paste')} onCustom={() => setScreen('days')} onReload={() => setScreen('load')} />;
   }
 
-  return <Shell>{body}</Shell>;
+  // centre the short screens; let the long program lists start at the top
+  const centred = ['building','home','paste','load'].includes(screen);
+  return <Shell center={centred}>{body}</Shell>;
 }
