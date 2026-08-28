@@ -31,7 +31,9 @@ const EQ = {
   HACK:'hack squat machine', PENDULUM:'pendulum squat machine', LEG_PRESS_M:'leg press machine',
   LEG_EXT_M:'leg extension machine', LEG_CURL_SEATED_M:'seated leg curl machine',
   LEG_CURL_LYING_M:'lying leg curl machine',
+  LEG_CURL_KNEELING_M:'kneeling leg curl machine',
   CALF_STANDING_M:'standing calf raise machine', CALF_SEATED_M:'seated calf raise machine',
+  CALF_SEATED_STRAIGHT_M:'seated straight-leg calf raise machine',
   STEPPER:'step / platform',
   CHEST_PRESS_M:'chest press machine', INCLINE_PRESS_M:'incline chest press machine',
   PEC_DECK:'pec deck', CHEST_FLY_M:'chest fly machine',
@@ -69,20 +71,24 @@ const EXERCISES = {
   RDL_CABLE:['Romanian Deadlift (Cable)',[EQ.CABLE]],
   RDL_DB:['Romanian Deadlift (Dumbbell)',[EQ.DUMBBELLS],{db:true}],
   // GLUTE
-  HIP_THRUST_BB:['Hip Thrust (Barbell)',[EQ.HIP_THRUST_STATION,EQ.BARBELL]],
+  HIP_THRUST_BB:['Barbell Hip Thrust (Hip Thrust Station)',[EQ.HIP_THRUST_STATION,EQ.BARBELL]],
   HIP_THRUST_MACH:['Hip Thrust (Machine)',[EQ.HIP_THRUST_M]],
   HIP_THRUST_SMITH:['Hip Thrust (Smith Machine)',[EQ.SMITH,EQ.FLAT_BENCH]],
-  HIP_THRUST_BENCH:['Hip Thrust (Bench + Barbell)',[EQ.BARBELL,EQ.FLAT_BENCH]],
+  HIP_THRUST_BENCH:['Barbell Hip Thrust (Bench Propped, Manual Setup)',[EQ.BARBELL,EQ.FLAT_BENCH]],
   HIP_THRUST_DB_1L:['Single-Leg Hip Thrust (Dumbbell)',[EQ.DUMBBELLS,EQ.FLAT_BENCH],{db:true,sa:true}],
   // LEG_EXT
   LEG_EXT:['Leg Extension',[EQ.LEG_EXT_M]],
-  REVERSE_NORDIC:['Reverse Nordic Curl',[]],
+  REVERSE_NORDIC:['Band-Assisted Reverse Nordic Curl',[EQ.BANDS]],
+  SISSY_SQUAT:['Sissy Squat',[]],
   // LEG_CURL
   LEG_CURL_SEATED:['Seated Leg Curl',[EQ.LEG_CURL_SEATED_M]],
   LEG_CURL_LYING:['Lying Leg Curl',[EQ.LEG_CURL_LYING_M]],
+  LEG_CURL_KNEELING:['Kneeling Leg Curl (Machine)',[EQ.LEG_CURL_KNEELING_M]],
   NORDIC_BAND:['Band-Assisted Nordic Curl',[EQ.BANDS]],
   // CALF
-  CALF_STRAIGHT_M:['Straight Leg Calf Raise (Machine)',[EQ.CALF_STANDING_M]],
+  CALF_STRAIGHT_M:['Seated Straight-Leg Calf Raise (Machine)',[EQ.CALF_SEATED_STRAIGHT_M]],
+  CALF_STANDING_MACH:['Standing Calf Raise (Machine)',[EQ.CALF_STANDING_M]],
+  CALF_STANDING_CABLE:['Standing Calf Raise (Cable)',[EQ.CABLE,EQ.STEPPER]],
   CALF_STRAIGHT_SM:['Straight Leg Calf Raise (Smith)',[EQ.SMITH,EQ.STEPPER]],
   CALF_STRAIGHT_DB:['Straight Leg Calf Raise (DB)',[EQ.DUMBBELLS,EQ.STEPPER],{db:true}],
   CALF_SEATED:['Seated Calf Raise',[EQ.CALF_SEATED_M]],
@@ -92,41 +98,52 @@ const EXERCISES = {
   INC_BB_15:['15° Incline Barbell Press',[EQ.BARBELL,EQ.RACK,EQ.ADJ_BENCH]],
   INC_DB_30:['30° Incline Dumbbell Press',[EQ.DUMBBELLS,EQ.ADJ_BENCH],{db:true}],
   INC_DB_15:['15° Incline Dumbbell Press',[EQ.DUMBBELLS,EQ.ADJ_BENCH],{db:true}],
-  INC_PRESS_MACH:['Incline Chest Press (Machine)',[EQ.INCLINE_PRESS_M]],
+  INC_PRESS_MACH:['Incline Chest Press (Plate-Loaded)',[EQ.INCLINE_PRESS_M]],
+  INC_PRESS_MACH_STACK:['Incline Chest Press (Stack-Loaded)',[EQ.INCLINE_PRESS_M]],
+  INC_PRESS_SMITH:['Smith Machine Incline Bench Press',[EQ.SMITH,EQ.ADJ_BENCH]],
   // FLAT_PRESS
   BENCH_BB:['Barbell Bench Press',[EQ.BARBELL,EQ.RACK,EQ.FLAT_BENCH]],
-  BENCH_BB_CG:['Close-Grip Barbell Bench Press',[EQ.BARBELL,EQ.RACK,EQ.FLAT_BENCH]],
-  CHEST_PRESS_MACH:['Chest Press (Machine)',[EQ.CHEST_PRESS_M]],
+  CHEST_PRESS_MACH:['Vertical Chest Press (Machine)',[EQ.CHEST_PRESS_M]],
+  CHEST_PRESS_FLAT_MACH:['Flat Chest Press (Machine)',[EQ.CHEST_PRESS_M]],
+  CHEST_PRESS_NEUTRAL_MACH:['Chest Press (Machine, Neutral Grip)',[EQ.CHEST_PRESS_M]],
+  BENCH_SMITH:['Flat Bench Press (Smith Machine)',[EQ.SMITH,EQ.FLAT_BENCH]],
   BENCH_DB_FLAT:['Flat Dumbbell Bench Press',[EQ.DUMBBELLS,EQ.FLAT_BENCH],{db:true}],
   // CHEST_ISO
   DB_FLY_PRESS:['DB Fly-Press',[EQ.DUMBBELLS,EQ.FLAT_BENCH],{db:true}],
   DB_FLY_PRESS_INC:['Incline DB Fly-Press',[EQ.DUMBBELLS,EQ.ADJ_BENCH],{db:true}],
   PEC_DECK:['Pec Deck',[EQ.PEC_DECK]],
-  CHEST_FLY_MACH:['Chest Fly (Machine)',[EQ.CHEST_FLY_M]],
-  CHEST_FLY_CABLE:['Cable Fly',[EQ.CABLE]],
+  CHEST_FLY_MACH:['Chest Fly (Plate-Loaded)',[EQ.CHEST_FLY_M]],
+  CHEST_FLY_MACH_STACK:['Chest Fly (Stack-Loaded)',[EQ.CHEST_FLY_M]],
+  CHEST_FLY_CABLE:['Seated Cable Fly',[EQ.CABLE,EQ.ADJ_BENCH]],
+  CHEST_FLY_CABLE_STAND:['Standing Cable Fly',[EQ.CABLE]],
   // VERT_PUSH
   SHLDR_PRESS_DB:['Seated DB Shoulder Press',[EQ.DUMBBELLS,EQ.ADJ_BENCH],{db:true}],
   VIKING_PRESS:['Viking Shoulder Press',[EQ.VIKING]],
-  SHLDR_PRESS_MACH:['Shoulder Press (Machine)',[EQ.SHOULDER_PRESS_M]],
+  SHLDR_PRESS_MACH:['Shoulder Press (Plate-Loaded)',[EQ.SHOULDER_PRESS_M]],
+  SHLDR_PRESS_MACH_STACK:['Shoulder Press (Stack-Loaded)',[EQ.SHOULDER_PRESS_M]],
   OHP_BB:['Standing Overhead Press',[EQ.BARBELL,EQ.RACK]],
   SHLDR_PRESS_SMITH:['Seated Shoulder Press (Smith)',[EQ.SMITH,EQ.ADJ_BENCH]],
   SHLDR_PRESS_DB_1A:['Standing One-Arm DB Press',[EQ.DUMBBELLS],{db:true,sa:true}],
   // HORIZ_PULL
   ROW_TBAR_CS:['Chest-Supported T-Bar Row',[EQ.TBAR_M]],
-  ROW_CS_MACH:['Chest-Supported Row (Machine)',[EQ.ROW_CS_M]],
+  ROW_CS_MACH:['Chest-Supported Row (Plate-Loaded)',[EQ.ROW_CS_M]],
+  ROW_CS_MACH_STACK:['Chest-Supported Row (Stack-Loaded)',[EQ.ROW_CS_M]],
   ROW_SEAL:['Seal Row (Barbell)',[EQ.SEAL_BENCH,EQ.BARBELL]],
   ROW_CABLE_SEATED:['Seated Cable Row',[EQ.CABLE]],
   ROW_CABLE_CS_1A:['Single-Arm Chest-Supported Cable Row',[EQ.CABLE,EQ.ADJ_BENCH],{sa:true}],
+  ROW_CABLE_CS:['Chest-Supported Row (Cable)',[EQ.CABLE,EQ.ADJ_BENCH]],
   ROW_PENDLAY:['Pendlay Row',[EQ.BARBELL]],
+  ROW_DB_CS:['Chest-Supported Dumbbell Row',[EQ.DUMBBELLS,EQ.ADJ_BENCH],{db:true}],
   ROW_DB_1A:['Single-Arm Dumbbell Row',[EQ.DUMBBELLS],{db:true,sa:true}],
-  ROW_INVERTED:['Inverted Row',[EQ.BARBELL,EQ.RACK],{amrap:true}],
+  ROW_INVERTED:['Feet-Elevated Inverted Row',[EQ.BARBELL,EQ.RACK],{amrap:true}],
   // VERT_PULL
   PULLUP_NEUTRAL_W:['Weighted Neutral-Grip Pull-up',[EQ.NEUTRAL_BARS,EQ.WEIGHT_BELT]],
   CHINUP_W:['Weighted Chin-up',[EQ.PULLUP_BAR,EQ.WEIGHT_BELT]],
   PULLUP_W:['Weighted Pull-up',[EQ.PULLUP_BAR,EQ.WEIGHT_BELT]],
   PULLDOWN_CABLE:['Lat Pulldown (Cable)',[EQ.LAT_PULLDOWN]],
   PULLDOWN_CABLE_1A:['Single-Arm Lat Pulldown (Cable)',[EQ.LAT_PULLDOWN],{sa:true}],
-  PULLDOWN_MACH:['Lat Pulldown (Machine)',[EQ.PULLDOWN_M]],
+  PULLDOWN_MACH:['Lat Pulldown (Plate-Loaded)',[EQ.PULLDOWN_M]],
+  PULLDOWN_MACH_STACK:['Lat Pulldown (Stack-Loaded)',[EQ.PULLDOWN_M]],
   PULLDOWN_MACH_1A:['Single-Arm Lat Pulldown (Machine)',[EQ.PULLDOWN_M],{sa:true}],
   PULLUP_BAND:['Band-Assisted Pull-up',[EQ.PULLUP_BAR]],
   PULLOVER_DB:['Dumbbell Pullover',[EQ.DUMBBELLS,EQ.FLAT_BENCH],{db:true}],
@@ -135,6 +152,7 @@ const EXERCISES = {
   SHRUG_SMITH:['Shrug (Smith Machine)',[EQ.SMITH]],
   SHRUG_TRAP:['Shrug (Trap Bar)',[EQ.TRAP_BAR]],
   SHRUG_DB:['Shrug (Dumbbell)',[EQ.DUMBBELLS],{db:true}],
+  SHRUG_KELSO:['Kelso Shrug (Machine)',[EQ.ROW_CS_M]],
   // SIDE_DELT
   LAT_RAISE_MACH:['Lateral Raise (Machine)',[EQ.LAT_RAISE_M]],
   CUBAN_PRESS:['Cuban Press',[EQ.DUMBBELLS],{db:true}],
@@ -166,35 +184,40 @@ const EXERCISES = {
   CRUNCH_CABLE:['Cable Crunch',[EQ.CABLE]],
   LEG_RAISE_LYING:['Lying Leg Raise',[EQ.FLAT_BENCH],{amrap:true}],
   LEG_RAISE_CHAIR:["Captain's Chair Leg Raise",[EQ.CAPTAINS_CHAIR],{amrap:true}],
+  DRAGON_FLAG_ECC:['Eccentric Dragon Flag',[EQ.FLAT_BENCH],{amrap:true}],
   // NECK
   NECK_CURL_CABLE:['Standing Neck Curl (Cable)',[EQ.HEAD_HARNESS,EQ.CABLE]],
-  NECK_EXT_PLATE_ST:['Standing Neck Extension (Plate)',[EQ.HEAD_HARNESS,EQ.PLATE]],
-  NECK_CURL_PLATE:['Neck Curl (Plate)',[EQ.FLAT_BENCH,EQ.PLATE]],
-  NECK_EXT_PLATE:['Neck Extension (Plate)',[EQ.FLAT_BENCH,EQ.PLATE]],
+  NECK_EXT_PLATE_ST:['Standing Neck Extension (Cable)',[EQ.HEAD_HARNESS,EQ.CABLE]],
+  NECK_CURL_SEATED_CABLE:['Seated Neck Curl (Cable)',[EQ.HEAD_HARNESS,EQ.CABLE]],
+  NECK_EXT_SEATED_CABLE:['Seated Neck Extension (Cable)',[EQ.HEAD_HARNESS,EQ.CABLE]],
+  NECK_CURL_PLATE:['Lying Neck Curl (Plate)',[EQ.FLAT_BENCH,EQ.PLATE]],
+  NECK_EXT_PLATE:['Lying Neck Extension (Plate)',[EQ.FLAT_BENCH,EQ.PLATE]],
+  NECK_CURL_INCLINE:['Incline Neck Curl (Plate)',[EQ.ADJ_BENCH,EQ.HEAD_HARNESS]],
+  NECK_EXT_INCLINE:['Incline Neck Extension (Plate)',[EQ.ADJ_BENCH,EQ.HEAD_HARNESS]],
 };
 
 // Pools in PREFERENCE ORDER — first equippable, un-vetoed entry wins.
 const POOLS = {
   SQUAT:['HACK_SQUAT','PENDULUM_SQUAT','LEG_PRESS','SQUAT_SMITH','SQUAT_BACK','SQUAT_FRONT','SPLIT_SQUAT_BULG'],
-  HINGE:['RDL_LEVER','RDL_TRAP','BACK_EXT_WTD','RDL_LANDMINE','RDL_SMITH','RDL_BB','RDL_CABLE','RDL_DB'],
+  HINGE:['RDL_LEVER','RDL_TRAP','RDL_LANDMINE','RDL_SMITH','RDL_BB','BACK_EXT_WTD','RDL_CABLE','RDL_DB'],
   GLUTE:['HIP_THRUST_BB','HIP_THRUST_MACH','HIP_THRUST_SMITH','HIP_THRUST_BENCH','HIP_THRUST_DB_1L'],
-  LEG_EXT:['LEG_EXT','REVERSE_NORDIC'],
-  LEG_CURL:['LEG_CURL_SEATED','LEG_CURL_LYING','NORDIC_BAND'],
-  CALF:['CALF_STRAIGHT_M','CALF_STRAIGHT_SM','CALF_STRAIGHT_DB','CALF_SEATED','CALF_SL_BW'],
-  INCLINE_PRESS:['INC_BB_30','INC_BB_15','INC_DB_30','INC_DB_15','INC_PRESS_MACH'],
-  FLAT_PRESS:['BENCH_BB','BENCH_BB_CG','CHEST_PRESS_MACH','BENCH_DB_FLAT'],
-  CHEST_ISO:['DB_FLY_PRESS','DB_FLY_PRESS_INC','PEC_DECK','CHEST_FLY_MACH','CHEST_FLY_CABLE'],
-  VERT_PUSH:['SHLDR_PRESS_DB','VIKING_PRESS','SHLDR_PRESS_MACH','OHP_BB','SHLDR_PRESS_SMITH','SHLDR_PRESS_DB_1A'],
-  HORIZ_PULL:['ROW_TBAR_CS','ROW_CS_MACH','ROW_SEAL','ROW_CABLE_SEATED','ROW_CABLE_CS_1A','ROW_PENDLAY','ROW_DB_1A','ROW_INVERTED'],
-  VERT_PULL:['PULLUP_NEUTRAL_W','CHINUP_W','PULLUP_W','PULLDOWN_CABLE','PULLDOWN_CABLE_1A','PULLDOWN_MACH','PULLDOWN_MACH_1A','PULLUP_BAND','PULLOVER_DB'],
-  TRAPS:['SHRUG_MACH','SHRUG_SMITH','SHRUG_TRAP','SHRUG_DB'],
+  LEG_EXT:['LEG_EXT','SISSY_SQUAT','REVERSE_NORDIC'],
+  LEG_CURL:['LEG_CURL_SEATED','LEG_CURL_LYING','LEG_CURL_KNEELING','NORDIC_BAND'],
+  CALF:['CALF_STRAIGHT_M','CALF_STANDING_MACH','CALF_STRAIGHT_SM','CALF_STANDING_CABLE','CALF_STRAIGHT_DB','CALF_SEATED','CALF_SL_BW'],
+  INCLINE_PRESS:['INC_BB_30','INC_BB_15','INC_DB_30','INC_DB_15','INC_PRESS_MACH','INC_PRESS_MACH_STACK','INC_PRESS_SMITH'],
+  FLAT_PRESS:['BENCH_BB','CHEST_PRESS_MACH','CHEST_PRESS_FLAT_MACH','CHEST_PRESS_NEUTRAL_MACH','BENCH_SMITH','BENCH_DB_FLAT'],
+  CHEST_ISO:['DB_FLY_PRESS','DB_FLY_PRESS_INC','PEC_DECK','CHEST_FLY_MACH','CHEST_FLY_MACH_STACK','CHEST_FLY_CABLE','CHEST_FLY_CABLE_STAND'],
+  VERT_PUSH:['SHLDR_PRESS_DB','VIKING_PRESS','OHP_BB','SHLDR_PRESS_MACH','SHLDR_PRESS_MACH_STACK','SHLDR_PRESS_SMITH','SHLDR_PRESS_DB_1A'],
+  HORIZ_PULL:['ROW_TBAR_CS','ROW_CS_MACH','ROW_CS_MACH_STACK','ROW_SEAL','ROW_CABLE_SEATED','ROW_CABLE_CS_1A','ROW_CABLE_CS','ROW_PENDLAY','ROW_DB_CS','ROW_DB_1A','ROW_INVERTED'],
+  VERT_PULL:['CHINUP_W','PULLUP_NEUTRAL_W','PULLUP_W','PULLDOWN_CABLE','PULLDOWN_CABLE_1A','PULLDOWN_MACH','PULLDOWN_MACH_STACK','PULLDOWN_MACH_1A','PULLUP_BAND','PULLOVER_DB'],
+  TRAPS:['SHRUG_MACH','SHRUG_SMITH','SHRUG_TRAP','SHRUG_DB','SHRUG_KELSO'],
   SIDE_DELT:['LAT_RAISE_MACH','CUBAN_PRESS','LAT_RAISE_DB','LAT_RAISE_CBL_BTB','LAT_RAISE_CABLE'],
   REAR_DELT:['REAR_DELT_MACH','REAR_DELT_CBL_1A','FACE_PULL_CABLE','REAR_DELT_DB_30'],
   TRI_OH:['TRI_OH_CABLE','TRI_OH_CABLE_1A','SKULLCRUSHER_BB','TRI_OH_DB','TRI_OH_DB_INC'],
   TRI_PUSHDOWN:['TRI_PUSHDOWN','TRI_PUSHDOWN_1A'],
   BICEPS:['CURL_INCLINE_DB','CURL_BAYESIAN','CURL_EZ','CURL_BB','CURL_DB_STANDING'],
-  ABS:['CRUNCH_MACH','CRUNCH_CABLE','LEG_RAISE_LYING','LEG_RAISE_CHAIR'],
-  NECK:['NECK_CURL_CABLE','NECK_EXT_PLATE_ST','NECK_CURL_PLATE','NECK_EXT_PLATE'],
+  ABS:['CRUNCH_MACH','CRUNCH_CABLE','LEG_RAISE_LYING','LEG_RAISE_CHAIR','DRAGON_FLAG_ECC'],
+  NECK:['NECK_CURL_PLATE','NECK_EXT_PLATE','NECK_CURL_CABLE','NECK_EXT_PLATE_ST','NECK_CURL_SEATED_CABLE','NECK_EXT_SEATED_CABLE','NECK_CURL_INCLINE','NECK_EXT_INCLINE'],
 };
 
 // When a pool can't resolve, borrow from another. Week-uniqueness still applies,
@@ -393,7 +416,32 @@ function buildProgram(skelId, owned, vetoed = new Set()){
 // never change what an existing code decodes to. Rep ranges are recomputed on
 // decode, so retuning a base range updates every code that reloads.
 // =====================================================
-const ID_LIST = Object.keys(EXERCISES).sort();
+// FROZEN TOKEN ORDER. Tokens are positions in this list, so the list is
+// APPEND-ONLY: never sort it, never reorder it, never remove an entry. Removing
+// or reordering would change what every previously issued code decodes to.
+// New exercises go on the end. Retired ones stay in place as dead slots.
+const TOKEN_ORDER = [
+  'BACK_EXT_WTD','BENCH_BB','BENCH_DB_FLAT','CALF_SEATED','CALF_SL_BW','CALF_STRAIGHT_DB',
+  'CALF_STRAIGHT_M','CALF_STRAIGHT_SM','CHEST_FLY_CABLE','CHEST_FLY_MACH','CHEST_PRESS_MACH','CHINUP_W',
+  'CRUNCH_CABLE','CRUNCH_MACH','CUBAN_PRESS','CURL_BAYESIAN','CURL_BB','CURL_DB_STANDING',
+  'CURL_EZ','CURL_INCLINE_DB','DB_FLY_PRESS','DB_FLY_PRESS_INC','FACE_PULL_CABLE','HACK_SQUAT',
+  'HIP_THRUST_BB','HIP_THRUST_BENCH','HIP_THRUST_DB_1L','HIP_THRUST_MACH','HIP_THRUST_SMITH','INC_BB_15',
+  'INC_BB_30','INC_DB_15','INC_DB_30','INC_PRESS_MACH','LAT_RAISE_CABLE','LAT_RAISE_CBL_BTB',
+  'LAT_RAISE_DB','LAT_RAISE_MACH','LEG_CURL_LYING','LEG_CURL_SEATED','LEG_EXT','LEG_PRESS',
+  'LEG_RAISE_CHAIR','LEG_RAISE_LYING','NECK_CURL_CABLE','NECK_CURL_PLATE','NECK_EXT_PLATE','NECK_EXT_PLATE_ST',
+  'NORDIC_BAND','OHP_BB','PEC_DECK','PENDULUM_SQUAT','PULLDOWN_CABLE','PULLDOWN_CABLE_1A',
+  'PULLDOWN_MACH','PULLDOWN_MACH_1A','PULLOVER_DB','PULLUP_BAND','PULLUP_NEUTRAL_W','PULLUP_W',
+  'RDL_BB','RDL_CABLE','RDL_DB','RDL_LANDMINE','RDL_LEVER','RDL_SMITH',
+  'RDL_TRAP','REAR_DELT_CBL_1A','REAR_DELT_DB_30','REAR_DELT_MACH','REVERSE_NORDIC','ROW_CABLE_CS_1A',
+  'ROW_CABLE_SEATED','ROW_CS_MACH','ROW_DB_1A','ROW_INVERTED','ROW_PENDLAY','ROW_SEAL',
+  'ROW_TBAR_CS','SHLDR_PRESS_DB','SHLDR_PRESS_DB_1A','SHLDR_PRESS_MACH','SHLDR_PRESS_SMITH','SHRUG_DB',
+  'SHRUG_MACH','SHRUG_SMITH','SHRUG_TRAP','SKULLCRUSHER_BB','SPLIT_SQUAT_BULG','SQUAT_BACK',
+  'SQUAT_FRONT','SQUAT_SMITH','TRI_OH_CABLE','TRI_OH_CABLE_1A','TRI_OH_DB','TRI_OH_DB_INC',
+  'TRI_PUSHDOWN','TRI_PUSHDOWN_1A','VIKING_PRESS',
+];
+// Anything in the library but not yet in TOKEN_ORDER is appended automatically,
+// which keeps existing tokens stable while new exercises still encode.
+const ID_LIST = [...TOKEN_ORDER, ...Object.keys(EXERCISES).filter(id => !TOKEN_ORDER.includes(id)).sort()];
 const ID_TO_TOKEN = {}; const TOKEN_TO_ID = {};
 ID_LIST.forEach((id,i)=>{ ID_TO_TOKEN[id]=i.toString(36); TOKEN_TO_ID[i.toString(36)]=id; });
 
@@ -486,7 +534,7 @@ const EQUIPMENT_GROUPS = [
   { label:'Free weights', items:[EQ.BARBELL,EQ.DUMBBELLS,EQ.EZ_BAR,EQ.TRAP_BAR,EQ.PLATE] },
   { label:'Racks & benches', items:[EQ.RACK,EQ.FLAT_BENCH,EQ.ADJ_BENCH,EQ.INCLINE_STATION,EQ.SMITH,EQ.LANDMINE,EQ.LEVER_ARMS] },
   { label:'Cables & bars', items:[EQ.CABLE,EQ.LAT_PULLDOWN,EQ.PULLUP_BAR,EQ.NEUTRAL_BARS,EQ.WEIGHT_BELT,EQ.BANDS] },
-  { label:'Leg machines', items:[EQ.HACK,EQ.PENDULUM,EQ.LEG_PRESS_M,EQ.LEG_EXT_M,EQ.LEG_CURL_SEATED_M,EQ.LEG_CURL_LYING_M,EQ.CALF_STANDING_M,EQ.CALF_SEATED_M,EQ.HIP_THRUST_M,EQ.HIP_THRUST_STATION] },
+  { label:'Leg machines', items:[EQ.HACK,EQ.PENDULUM,EQ.LEG_PRESS_M,EQ.LEG_EXT_M,EQ.LEG_CURL_SEATED_M,EQ.LEG_CURL_LYING_M,EQ.LEG_CURL_KNEELING_M,EQ.CALF_STANDING_M,EQ.CALF_SEATED_M,EQ.CALF_SEATED_STRAIGHT_M,EQ.HIP_THRUST_M,EQ.HIP_THRUST_STATION] },
   { label:'Upper body machines', items:[EQ.CHEST_PRESS_M,EQ.INCLINE_PRESS_M,EQ.PEC_DECK,EQ.CHEST_FLY_M,EQ.SHOULDER_PRESS_M,EQ.LAT_RAISE_M,EQ.REAR_DELT_M,EQ.ROW_CS_M,EQ.TBAR_M,EQ.PULLDOWN_M,EQ.SHRUG_M,EQ.VIKING,EQ.SEAL_BENCH] },
   { label:'Other', items:[EQ.STEPPER,EQ.ROMAN_CHAIR,EQ.CRUNCH_M,EQ.CAPTAINS_CHAIR,EQ.HEAD_HARNESS] },
 ];
@@ -495,7 +543,7 @@ const PRESET_FULL = new Set(Object.values(EQ));
 const PRESET_MID = new Set([
   EQ.BARBELL,EQ.DUMBBELLS,EQ.EZ_BAR,EQ.RACK,EQ.FLAT_BENCH,EQ.ADJ_BENCH,EQ.INCLINE_STATION,
   EQ.CABLE,EQ.LAT_PULLDOWN,EQ.PULLUP_BAR,EQ.WEIGHT_BELT,EQ.SMITH,EQ.LEG_PRESS_M,EQ.LEG_EXT_M,
-  EQ.LEG_CURL_SEATED_M,EQ.CALF_STANDING_M,EQ.CHEST_PRESS_M,EQ.PEC_DECK,EQ.SHOULDER_PRESS_M,
+  EQ.LEG_CURL_SEATED_M,EQ.CALF_STANDING_M,EQ.CALF_SEATED_STRAIGHT_M,EQ.CHEST_PRESS_M,EQ.PEC_DECK,EQ.SHOULDER_PRESS_M,
   EQ.LAT_RAISE_M,EQ.REAR_DELT_M,EQ.ROW_CS_M,EQ.CRUNCH_M,EQ.STEPPER,EQ.PLATE,EQ.BANDS,
 ]);
 const PRESET_GARAGE = new Set([
