@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, ArrowLeft, Check, Copy, X, AlertTriangle, BookOpen } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Check, Copy, X, AlertTriangle, BookOpen, Loader2 } from 'lucide-react';
 
 // =====================================================
 // OPTIWORKOUT — v1
@@ -23,7 +23,7 @@ import { ArrowRight, ArrowLeft, Check, Copy, X, AlertTriangle, BookOpen } from '
 // =====================================================
 const EQ = {
   BARBELL:'barbell', DUMBBELLS:'dumbbells', EZ_BAR:'ez bar', TRAP_BAR:'trap bar',
-  RACK:'squat rack', FLAT_BENCH:'flat bench', ADJ_BENCH:'adjustable bench',
+  RACK:'squat rack', FLAT_BENCH:'flat bench station', ADJ_BENCH:'adjustable bench',
   INCLINE_STATION:'incline bench station',
   CABLE:'cable station', LAT_PULLDOWN:'lat pulldown (cable)',
   PULLUP_BAR:'pull-up bar', NEUTRAL_BARS:'neutral grip bars', WEIGHT_BELT:'weight belt',
@@ -43,7 +43,7 @@ const EQ = {
   SEAL_BENCH:'seal row bench', PULLDOWN_M:'lat pulldown machine (lever)',
   SHRUG_M:'shrug machine', HIP_THRUST_M:'hip thrust machine', HIP_THRUST_STATION:'hip thrust station',
   ROMAN_CHAIR:'roman chair', CRUNCH_M:'abs crunch machine', CAPTAINS_CHAIR:"captain's chair",
-  HEAD_HARNESS:'head harness', PLATE:'weight plate',
+  HEAD_HARNESS:'head harness', PLATE:'barbell plates',
 };
 
 // =====================================================
@@ -217,7 +217,8 @@ const POOLS = {
   TRI_PUSHDOWN:['TRI_PUSHDOWN','TRI_PUSHDOWN_1A'],
   BICEPS:['CURL_INCLINE_DB','CURL_BAYESIAN','CURL_EZ','CURL_BB','CURL_DB_STANDING'],
   ABS:['CRUNCH_MACH','CRUNCH_CABLE','LEG_RAISE_LYING','LEG_RAISE_CHAIR','DRAGON_FLAG_ECC'],
-  NECK:['NECK_CURL_PLATE','NECK_EXT_PLATE','NECK_CURL_CABLE','NECK_EXT_PLATE_ST','NECK_CURL_SEATED_CABLE','NECK_EXT_SEATED_CABLE','NECK_CURL_INCLINE','NECK_EXT_INCLINE'],
+  NECK_CURL:['NECK_CURL_PLATE','NECK_CURL_CABLE','NECK_CURL_SEATED_CABLE','NECK_CURL_INCLINE'],
+  NECK_EXT:['NECK_EXT_PLATE','NECK_EXT_PLATE_ST','NECK_EXT_SEATED_CABLE','NECK_EXT_INCLINE'],
 };
 
 // When a pool can't resolve, borrow from another. Week-uniqueness still applies,
@@ -230,7 +231,8 @@ const PATTERN_LABEL = {
   FLAT_PRESS:'Flat press', CHEST_ISO:'Chest isolation', VERT_PUSH:'Vertical push',
   HORIZ_PULL:'Horizontal pull', VERT_PULL:'Vertical pull', TRAPS:'Traps',
   SIDE_DELT:'Side delt', REAR_DELT:'Rear delt', TRI_OH:'Overhead triceps',
-  TRI_PUSHDOWN:'Triceps pushdown', BICEPS:'Biceps', ABS:'Abs', NECK:'Neck',
+  TRI_PUSHDOWN:'Triceps pushdown', BICEPS:'Biceps', ABS:'Abs',
+  NECK_CURL:'Neck flexion', NECK_EXT:'Neck extension',
 };
 
 // =====================================================
@@ -263,7 +265,7 @@ const BASE = {
   SQUAT:[6,8], HINGE:[8,10], LEG_CURL:[8,12], LEG_EXT:[8,12], INCLINE_PRESS:[6,8],
   FLAT_PRESS:[6,8], CHEST_ISO:[10,12], VERT_PUSH:[6,8], HORIZ_PULL:[6,8], VERT_PULL:[6,8],
   SIDE_DELT:[10,12], REAR_DELT:[10,12], TRI_OH:[10,12], TRI_PUSHDOWN:[10,12], BICEPS:[8,12],
-  CALF:[15,20], ABS:[10,12], NECK:[15,20], GLUTE:[8,12], TRAPS:[10,15],
+  CALF:[15,20], ABS:[10,12], NECK_CURL:[15,20], NECK_EXT:[15,20], GLUTE:[8,12], TRAPS:[10,15],
 };
 const GROUP = {
   INCLINE_PRESS:'PUSH', FLAT_PRESS:'PUSH', VERT_PUSH:'PUSH',
@@ -297,7 +299,7 @@ const REST = {
   INCLINE_PRESS:'3 min', VERT_PUSH:'2-3 min', HORIZ_PULL:'2-3 min', VERT_PULL:'2-3 min',
   LEG_EXT:'1-2 min', LEG_CURL:'2 min', CALF:'1 min', CHEST_ISO:'2 min', TRAPS:'2 min',
   SIDE_DELT:'1 min', REAR_DELT:'1 min', TRI_OH:'1-2 min', TRI_PUSHDOWN:'1-2 min',
-  BICEPS:'1-2 min', ABS:'1-2 min', NECK:'1 min',
+  BICEPS:'1-2 min', ABS:'1-2 min', NECK_CURL:'1 min', NECK_EXT:'1 min',
 };
 
 
@@ -313,7 +315,7 @@ const PROGRESSION = {
   VERT_PUSH:'RPT', HORIZ_PULL:'RPT', VERT_PULL:'RPT',
   LEG_EXT:'SS', LEG_CURL:'SS', CALF:'SS', CHEST_ISO:'SS', TRAPS:'SS',
   SIDE_DELT:'SS', REAR_DELT:'SS', TRI_OH:'SS', TRI_PUSHDOWN:'SS', BICEPS:'SS',
-  ABS:'SS', NECK:'SS',
+  ABS:'SS', NECK_CURL:'SS', NECK_EXT:'SS',
 };
 const RIR = '0-1';
 
@@ -353,7 +355,7 @@ const SKELETONS = {
   ], dayCount:3, blurb:'Every muscle three times a week. Highest frequency, most balanced.' },
 
   UL4:{ name:'Upper / Lower 4x', days:[
-    { name:'Lower 1', slots:[S('SQUAT'),S('HINGE'),S('CALF'),S('NECK',{optional:true}),S('NECK',{optional:true})] },
+    { name:'Lower 1', slots:[S('SQUAT'),S('HINGE'),S('CALF'),S('NECK_CURL',{optional:true}),S('NECK_EXT',{optional:true})] },
     { name:'Upper 1', slots:[S('FLAT_PRESS'),S('HORIZ_PULL'),S('VERT_PUSH'),S('VERT_PULL'),S('BICEPS'),S('TRI_PUSHDOWN'),S('REAR_DELT')] },
     { name:'Lower 2', slots:[S('GLUTE'),S('SQUAT'),S('LEG_CURL'),S('LEG_EXT'),S('CALF'),S('ABS')] },
     { name:'Upper 2', slots:[S('VERT_PULL'),S('INCLINE_PRESS'),S('HORIZ_PULL'),S('FLAT_PRESS'),S('TRAPS'),S('BICEPS'),S('TRI_OH'),S('SIDE_DELT')] },
@@ -361,23 +363,23 @@ const SKELETONS = {
 
   PPLU:{ name:'Push / Pull / Legs / Upper', days:[
     { name:'Push',  slots:[S('INCLINE_PRESS'),S('FLAT_PRESS'),S('TRI_OH'),S('SIDE_DELT'),S('ABS')] },
-    { name:'Pull',  slots:[S('VERT_PULL'),S('HORIZ_PULL'),S('BICEPS'),S('REAR_DELT'),S('NECK',{optional:true}),S('NECK',{optional:true})] },
+    { name:'Pull',  slots:[S('VERT_PULL'),S('HORIZ_PULL'),S('BICEPS'),S('REAR_DELT'),S('NECK_CURL',{optional:true}),S('NECK_EXT',{optional:true})] },
     { name:'Legs',  slots:[S('SQUAT'),S('HINGE'),S('LEG_EXT'),S('LEG_CURL'),S('CALF')] },
     { name:'Upper', slots:[S('TRAPS'),S('VERT_PUSH'),S('VERT_PULL'),S('FLAT_PRESS'),S('BICEPS'),S('TRI_PUSHDOWN')] },
   ], dayCount:4, blurb:'Classic push/pull/legs with an extra upper day to lift torso frequency.' },
 
   PPLE:{ name:'Push / Pull, Legs Every Session', days:[
-    { name:'Day 1', slots:[S('HINGE'),S('FLAT_PRESS'),S('VERT_PUSH'),S('CHEST_ISO'),S('TRI_OH'),S('NECK',{optional:true}),S('NECK',{optional:true})] },
+    { name:'Day 1', slots:[S('HINGE'),S('FLAT_PRESS'),S('VERT_PUSH'),S('CHEST_ISO'),S('TRI_OH'),S('NECK_CURL',{optional:true}),S('NECK_EXT',{optional:true})] },
     { name:'Day 2', slots:[S('SQUAT'),S('VERT_PULL'),S('HORIZ_PULL'),S('BICEPS'),S('REAR_DELT'),S('CALF')] },
     { name:'Day 3', slots:[S('SQUAT'),S('INCLINE_PRESS'),S('VERT_PUSH'),S('FLAT_PRESS'),S('TRI_PUSHDOWN'),S('SIDE_DELT')] },
     { name:'Day 4', slots:[S('VERT_PULL'),S('HORIZ_PULL'),S('TRAPS'),S('BICEPS'),S('LEG_CURL'),S('LEG_EXT'),S('CALF')] },
   ], dayCount:4, blurb:'Push and pull upper work, with leg training spread across every session instead of stacked into one.' },
 
   D5:{ name:'Lower / Torso / Arms / Lower / Upper', days:[
-    { name:'Lower 1', slots:[S('SQUAT'),S('HINGE'),S('LEG_EXT'),S('CALF'),S('ABS')] },
+    { name:'Lower 1', slots:[S('SQUAT'),S('HINGE'),S('LEG_EXT'),S('LEG_CURL'),S('CALF'),S('ABS')] },
     { name:'Torso',   slots:[S('INCLINE_PRESS'),S('HORIZ_PULL'),S('CHEST_ISO'),S('VERT_PULL'),S('REAR_DELT')] },
     { name:'Arms',    slots:[S('VERT_PUSH'),S('BICEPS'),S('TRI_OH'),S('BICEPS'),S('TRI_PUSHDOWN'),S('SIDE_DELT')] },
-    { name:'Lower 2', slots:[S('GLUTE'),S('SQUAT'),S('LEG_CURL'),S('ABS'),S('NECK',{optional:true}),S('NECK',{optional:true})] },
+    { name:'Lower 2', slots:[S('GLUTE'),S('SQUAT'),S('LEG_CURL'),S('ABS'),S('NECK_CURL',{optional:true}),S('NECK_EXT',{optional:true})] },
     { name:'Upper',   slots:[S('VERT_PULL'),S('FLAT_PRESS'),S('HORIZ_PULL'),S('CHEST_ISO'),S('TRAPS'),S('REAR_DELT')] },
   ], dayCount:5, blurb:'Five shorter sessions with a dedicated arm day. Most volume, most frequency.' },
 };
@@ -967,6 +969,17 @@ const ExerciseRow = ({row, onSwap, detailed}) => {
   );
 };
 
+// Matches PhysiquePlan's loading screen: a spinner, two lines, 2 seconds.
+const LoadingScreen = ({ message = 'Building your program...' }) => (
+  <Card className="max-w-xl">
+    <div className="text-center py-8">
+      <Loader2 className="w-10 h-10 mx-auto text-orange-500 animate-spin" />
+      <p className="mt-4 font-medium text-stone-900">{message}</p>
+      <p className="text-sm text-stone-500 mt-1">Matching movements to your equipment, setting rep ranges and rest times...</p>
+    </div>
+  </Card>
+);
+
 function ReviewScreen({prog, owned, onSwapAt, onBack, onAccept}){
   const [swap, setSwap] = useState(null);
   const holes = prog.unserviceable;
@@ -1248,6 +1261,12 @@ export default function App(){
   const [seq, setSeq] = useState(1);
   const [swapsMade, setSwapsMade] = useState(0);
 
+  useEffect(() => {
+    if (screen !== 'building') return;
+    const t = setTimeout(() => setScreen('review'), 2000);
+    return () => clearTimeout(t);
+  }, [screen]);
+
   // PhysiquePlan can hand off directly with ?code=SS1-...
   useEffect(() => {
     const p = new URLSearchParams(window.location.search).get('code');
@@ -1304,7 +1323,10 @@ export default function App(){
     case 'equipment':
       body = <EquipmentScreen step={2} total={totalSteps} owned={owned} setOwned={setOwned}
         onBack={() => setScreen(SKELETONS_BY_DAYS(days).length > 1 ? 'split' : 'days')}
-        onContinue={() => { setProg(buildProgram(skelId, owned, new Set())); setScreen('review'); }} />;
+        onContinue={() => { setProg(buildProgram(skelId, owned, new Set())); setScreen('building'); }} />;
+      break;
+    case 'building':
+      body = <LoadingScreen />;
       break;
     case 'review':
       body = <ReviewScreen prog={prog} owned={owned} onSwapAt={swapAt}
