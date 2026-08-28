@@ -40,7 +40,7 @@ const EQ = {
   SHOULDER_PRESS_M:'shoulder press machine', VIKING:'viking press',
   LAT_RAISE_M:'lateral raise machine', REAR_DELT_M:'rear delt fly machine',
   ROW_CS_M:'chest supported row machine', TBAR_M:'t-bar row machine',
-  SEAL_BENCH:'seal row bench', PULLDOWN_M:'lat pulldown machine (lever)',
+  SEAL_BENCH:'seal row bench', PULLDOWN_M:'lat pulldown machine',
   SHRUG_M:'shrug machine', HIP_THRUST_M:'hip thrust machine', HIP_THRUST_STATION:'hip thrust station',
   ROMAN_CHAIR:'roman chair', CRUNCH_M:'abs crunch machine', CAPTAINS_CHAIR:"captain's chair",
   HEAD_HARNESS:'head harness', PLATE:'barbell plates',
@@ -604,12 +604,20 @@ const EQUIPMENT_GROUPS = [
 ];
 
 const PRESET_FULL = new Set(Object.values(EQ));
+// A large commercial gym: everything except the genuinely rare specialist
+// kit. A well-stocked chain gym, but not one with a pendulum squat or a
+// seated straight-leg calf machine.
+const LARGE_GYM_EXCLUDE = new Set([
+  EQ.TRAP_BAR, EQ.LEVER_ARMS, EQ.SEAL_BENCH, EQ.PENDULUM, EQ.CALF_SEATED_STRAIGHT_M,
+  EQ.LEG_CURL_KNEELING_M, EQ.VIKING, EQ.SHRUG_M, EQ.HEAD_HARNESS,
+]);
+const PRESET_LARGE = new Set(Object.values(EQ).filter(e => !LARGE_GYM_EXCLUDE.has(e)));
 // A well-equipped commercial gym, but not a specialist one. No seated
 // straight-leg calf machine, no pendulum, no hack squat, no lever arms.
 const PRESET_MID = new Set([
   EQ.BARBELL,EQ.DUMBBELLS,EQ.EZ_BAR,EQ.RACK,EQ.FLAT_BENCH,EQ.ADJ_BENCH,EQ.INCLINE_STATION,
   EQ.CABLE,EQ.LAT_PULLDOWN,EQ.PULLUP_BAR,EQ.WEIGHT_BELT,EQ.SMITH,EQ.LEG_PRESS_M,EQ.LEG_EXT_M,
-  EQ.LEG_CURL_SEATED_M,EQ.LEG_CURL_KNEELING_M,EQ.CALF_STANDING_M,EQ.CALF_SEATED_M,
+  EQ.LEG_CURL_SEATED_M,EQ.CALF_STANDING_M,EQ.CALF_SEATED_M,
   EQ.CHEST_PRESS_M,EQ.PEC_DECK,EQ.SHOULDER_PRESS_M,EQ.LAT_RAISE_M,EQ.REAR_DELT_M,
   EQ.ROW_CS_M,EQ.CRUNCH_M,EQ.ROMAN_CHAIR,EQ.CAPTAINS_CHAIR,EQ.STEPPER,EQ.PLATE,EQ.BANDS,
 ]);
@@ -900,7 +908,8 @@ function EquipmentScreen({onBack, onContinue, owned, setOwned, step, total}){
         Only tick what's available and usable for you.
       </p>
       <div className="mt-5 flex flex-wrap gap-2">
-        <button onClick={() => preset(PRESET_FULL)} className="px-4 py-2 rounded-full bg-stone-100 hover:bg-stone-200 text-sm font-medium text-stone-800 transition-colors">Full commercial gym</button>
+        <button onClick={() => preset(PRESET_FULL)} className="px-4 py-2 rounded-full bg-stone-100 hover:bg-stone-200 text-sm font-medium text-stone-800 transition-colors">Everything</button>
+        <button onClick={() => preset(PRESET_LARGE)} className="px-4 py-2 rounded-full bg-stone-100 hover:bg-stone-200 text-sm font-medium text-stone-800 transition-colors">Large commercial gym</button>
         <button onClick={() => preset(PRESET_MID)} className="px-4 py-2 rounded-full bg-stone-100 hover:bg-stone-200 text-sm font-medium text-stone-800 transition-colors">Standard gym</button>
         <button onClick={() => preset(PRESET_GARAGE)} className="px-4 py-2 rounded-full bg-stone-100 hover:bg-stone-200 text-sm font-medium text-stone-800 transition-colors">Garage gym</button>
         <button onClick={() => preset([])} className="px-4 py-2 rounded-full bg-stone-100 hover:bg-stone-200 text-sm font-medium text-stone-800 transition-colors">Clear</button>
