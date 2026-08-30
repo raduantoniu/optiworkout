@@ -694,7 +694,7 @@ const ExerciseImage = ({exId, className=''}) => {
     <div className={`rounded-lg border border-stone-200 bg-stone-100 aspect-[5/3] ${className}`} />
   );
   return (
-    <div className={`rounded-lg overflow-hidden bg-white border border-stone-200 aspect-[5/3] ${className}`}>
+    <div className={`rounded-lg overflow-hidden bg-white border border-white aspect-[5/3] ${className}`}>
       <img src={imageFor(exId)} alt={name} onError={() => setFailed(true)}
         className="w-full h-full object-contain" />
     </div>
