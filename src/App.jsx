@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ArrowRight, ArrowLeft, Check, Copy, X, AlertTriangle, BookOpen, Loader2 } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Check, Copy, X, AlertTriangle, BookOpen, Loader2, ChevronDown } from 'lucide-react';
 
 // =====================================================
 // OPTIWORKOUT — v1
@@ -326,14 +326,29 @@ function computeRange(pattern, exId, counters){
   return `${lo}-${hi}`;
 }
 
-// Rest is a property of the movement's role, not the exercise.
+// Rest follows the movement's role rather than the exercise itself.
 const REST = {
   SQUAT:'3-5 min', HINGE:'3-5 min', GLUTE:'3-5 min', FLAT_PRESS:'3 min',
   INCLINE_PRESS:'3 min', VERT_PUSH:'2-3 min', HORIZ_PULL:'2-3 min', VERT_PULL:'2-3 min',
-  LEG_EXT:'1-2 min', LEG_CURL:'2 min', CALF:'1 min', CHEST_ISO:'2 min', TRAPS:'2 min',
+  LEG_EXT:'2 min', LEG_CURL:'2 min', CALF:'1 min', CHEST_ISO:'2 min', TRAPS:'2 min',
   SIDE_DELT:'1 min', REAR_DELT:'1 min', TRI_OH:'1-2 min', TRI_PUSHDOWN:'1-2 min',
   BICEPS:'1-2 min', ABS:'1-2 min', NECK_CURL:'1 min', NECK_EXT:'1 min',
 };
+
+// Free-weight versions of a pattern cost more to recover from than the machine
+// or cable versions of the same pattern: more stabiliser involvement, more to
+// set up, more systemic. Where that gap is real, the exercise overrides its
+// pattern's rest. Anything absent here uses the pattern default above.
+const EXERCISE_REST = {
+  // horizontal pull, barbell and dumbbell
+  ROW_SEAL:'3 min', ROW_PENDLAY:'3 min', ROW_DB_CS:'3 min', ROW_DB_1A:'3 min',
+  // weighted pull-ups and chin-ups
+  CHINUP_W:'3 min', PULLUP_W:'3 min', PULLUP_NEUTRAL_W:'3 min',
+  // free-weight overhead pressing
+  SHLDR_PRESS_DB:'3 min', OHP_BB:'3 min',
+};
+
+const restFor = (pattern, exId) => EXERCISE_REST[exId] || REST[pattern];
 
 
 // =====================================================
@@ -350,7 +365,51 @@ const PROGRESSION = {
   SIDE_DELT:'SS', REAR_DELT:'SS', TRI_OH:'SS', TRI_PUSHDOWN:'SS', BICEPS:'SS',
   ABS:'SS', NECK_CURL:'SS', NECK_EXT:'SS',
 };
-const RIR = '0-1';
+// =====================================================
+// EFFORT TARGET (RIR)
+// Most sets are taken to 0-1 RIR: you stop the moment you are no longer sure
+// the next rep would go up.
+//
+// The big movements stop at 1 RIR instead, and being pinned is only one of the
+// reasons. Technique degrades before the muscle does, and a rep rescued with a
+// rounded back or a shifted hip is where injuries come from. A heavy compound
+// taken to true failure also costs far more systemic fatigue than the extra rep
+// is worth, and that cost is paid by every exercise after it in the session. On
+// machines like the leg press, true failure is genuinely hard to locate, so
+// aiming at it means overshooting it.
+// =====================================================
+const RIR_DEFAULT = '0-1';
+const RIR_CAUTION = '1';
+
+// Whole lower-body compound patterns: the heaviest loads, the most systemic
+// fatigue, and the worst consequences when position breaks down. Covers every
+// squat-type movement including the leg press and hack squat, every hip hinge,
+// and every thrust or bridge variation.
+const CAUTION_PATTERNS = new Set(['SQUAT','HINGE','GLUTE']);
+
+// Upper-body compounds heavy enough to earn the same treatment. Machine and
+// cable variants of the same patterns are deliberately absent: they are easier
+// to bail out of, easier to hold position on, and cheaper to recover from.
+const CAUTION_EXERCISES = new Set([
+  'BENCH_BB','BENCH_DB_FLAT',                              // flat pressing
+  'INC_BB_30','INC_BB_15','INC_DB_30','INC_DB_15',         // incline pressing
+  'OHP_BB','SHLDR_PRESS_DB','SHLDR_PRESS_DB_1A','VIKING_PRESS', // overhead
+  'CHINUP_W','PULLUP_W','PULLUP_NEUTRAL_W',                // weighted pull-ups
+  'ROW_PENDLAY','ROW_SEAL',                                // loaded spinal position
+  'SKULLCRUSHER_BB',                                       // barbell over the face
+]);
+
+const rirFor = (pattern, exId) =>
+  (CAUTION_PATTERNS.has(pattern) || CAUTION_EXERCISES.has(exId)) ? RIR_CAUTION : RIR_DEFAULT;
+
+// Set model follows the movement pattern, with per-exercise exceptions. The DB
+// fly-press is loaded like a compound press despite sitting in the chest
+// isolation slot, so it runs RPT.
+const EXERCISE_PROGRESSION = {
+  DB_FLY_PRESS:'RPT', DB_FLY_PRESS_INC:'RPT',
+};
+
+const modelFor = (pattern, exId) => EXERCISE_PROGRESSION[exId] || PROGRESSION[pattern];
 
 // Every exercise has one landscape image showing the bottom and top of the
 // movement. Filenames are derived from the exercise id, so dropping a file
@@ -466,7 +525,7 @@ function buildProgram(skelId, owned, vetoed = new Set()){
     const rows = day.slots.map((slot, ri) => {
       const exId = picked[`${di}:${ri}`];
       if (!exId) return { slot, exId:null, range:null, rest:null };
-      return { slot, exId, range: computeRange(slot.pattern, exId, counters), rest: REST[slot.pattern] };
+      return { slot, exId, range: computeRange(slot.pattern, exId, counters), rest: restFor(slot.pattern, exId) };
     });
     return { name: day.name, rows };
   });
@@ -540,7 +599,7 @@ function decodeProgram(code){
       if (tok === '-'){ rows.push({slot, exId:null, range:null, rest:null}); continue; }
       const exId = TOKEN_TO_ID[tok];
       if (!exId) return { ok:false, error:'That code refers to an exercise this version does not have.' };
-      rows.push({ slot, exId, range: computeRange(slot.pattern, exId, counters), rest: REST[slot.pattern] });
+      rows.push({ slot, exId, range: computeRange(slot.pattern, exId, counters), rest: restFor(slot.pattern, exId) });
     }
     days.push({ name:d.name, rows });
   }
@@ -1004,6 +1063,29 @@ function SwapMenu({row, prog, di, ri, owned, onPick, onClose}){
 }
 
 // ---- one exercise row, shared by review + final --------------------
+// Detailed mode is the execution view: it carries everything you need at the
+// rack, including which set model the exercise runs on and its effort target,
+// which is not uniform across the program.
+const Metric = ({label, value, accent}) => (
+  <div className="min-w-0">
+    <div className="text-[10px] uppercase tracking-wider text-stone-400 leading-none">{label}</div>
+    <div className={`mt-1 text-sm tabular-nums leading-none ${accent ? 'text-orange-700 font-semibold' : 'text-stone-800'}`}>
+      {value}
+    </div>
+  </div>
+);
+
+const ModelBadge = ({model}) => {
+  const style = model === 'RPT' ? 'bg-stone-900 text-white'
+              : model === 'SS'  ? 'bg-stone-100 text-stone-700 border border-stone-300'
+                                : 'bg-orange-100 text-orange-800 border border-orange-200';
+  return (
+    <span className={`flex-shrink-0 px-2 py-0.5 rounded text-[10px] font-bold tracking-wider ${style}`}>
+      {model}
+    </span>
+  );
+};
+
 const ExerciseRow = ({row, onSwap, detailed}) => {
   if (!row.exId) return (
     <div className="flex items-center gap-3 px-4 py-3">
@@ -1013,39 +1095,63 @@ const ExerciseRow = ({row, onSwap, detailed}) => {
       </div>
     </div>
   );
-  const prog = PROGRESSION[row.slot.pattern];
   const isAmrap = row.range === 'AMRAP';
+  const model = isAmrap ? 'AMRAP' : modelFor(row.slot.pattern, row.exId);
+  const rir = rirFor(row.slot.pattern, row.exId);
+  const sets = SETS[row.slot.pattern] || 3;
   return (
-    <div className="flex gap-3 px-4 py-3">
-      <ExerciseImage exId={row.exId} className="w-28 sm:w-36 flex-shrink-0" />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-start justify-between gap-3">
-          <div className="text-sm font-medium text-stone-900 leading-snug">
-            {EXERCISES[row.exId][0]}
-            {row.slot.optional && <span className="text-stone-400 font-normal"> · optional</span>}
+    <div className="px-4 py-3.5">
+      <div className="flex gap-3">
+        <ExerciseImage exId={row.exId} className="w-28 sm:w-36 flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-sm font-medium text-stone-900 leading-snug">
+                {EXERCISES[row.exId][0]}
+                {row.slot.optional && <span className="text-stone-400 font-normal"> · optional</span>}
+              </div>
+              <div className="text-xs text-stone-500 mt-1">{PATTERN_LABEL[row.slot.pattern]}</div>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {detailed && <ModelBadge model={model} />}
+              {onSwap && (
+                <button onClick={onSwap}
+                  className="text-sm font-medium text-orange-600 hover:text-orange-700 transition-colors">
+                  Swap
+                </button>
+              )}
+            </div>
           </div>
-          {onSwap && (
-            <button onClick={onSwap}
-              className="flex-shrink-0 text-sm font-medium text-orange-600 hover:text-orange-700 transition-colors">
-              Swap
-            </button>
+          {!detailed && (
+            <div className="mt-1.5 text-xs text-stone-500">{row.range} reps · rest {row.rest}</div>
           )}
         </div>
-        <div className="text-xs text-stone-500 mt-1">{PATTERN_LABEL[row.slot.pattern]}</div>
-        {detailed ? (
-          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone-600">
-            <span><span className="text-stone-400">Reps</span> {row.range}</span>
-            <span><span className="text-stone-400">Rest</span> {row.rest}</span>
-            {!isAmrap && <span><span className="text-stone-400">RIR</span> {RIR}</span>}
-            <span><span className="text-stone-400">Model</span> {isAmrap ? 'AMRAP' : prog}</span>
-          </div>
-        ) : (
-          <div className="mt-1 text-xs text-stone-500">{row.range} reps · rest {row.rest}</div>
-        )}
       </div>
+
+      {detailed && (
+        <div className="mt-3 pt-3 border-t border-stone-100 grid grid-cols-4 gap-3">
+          <Metric label="Sets" value={sets} />
+          <Metric label="Reps" value={isAmrap ? 'AMRAP' : row.range} />
+          <Metric label="RIR" value={isAmrap ? '0' : rir} accent={!isAmrap && rir === RIR_CAUTION} />
+          <Metric label="Rest" value={row.rest} />
+        </div>
+      )}
     </div>
   );
 };
+
+// A day of the program in execution view. Exercises run in the order listed.
+const DayBlock = ({day, detailed, onSwap}) => (
+  <div>
+    <div className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-2">{day.name}</div>
+    <div className="border border-stone-200 rounded-xl divide-y divide-stone-100 bg-white">
+      {day.rows.map((r, ri) => (
+        <ExerciseRow key={ri} row={r} detailed={detailed}
+          onSwap={onSwap && r.exId ? () => onSwap(ri) : null} />
+      ))}
+    </div>
+  </div>
+);
 
 // Matches PhysiquePlan's loading screen: a spinner, two lines, 2 seconds.
 const LoadingScreen = ({ message = 'Building your program...' }) => (
@@ -1220,7 +1326,6 @@ function VolumeTracker({ prog }){
   const { total, optional } = useMemo(() => computeVolume(prog.days), [prog]);
   const rows = ORDER.map(k => ({ k, v: round1(total[k]), o: round1(optional[k]) }))
                     .sort((a, b) => b.v - a.v);
-  const trained = rows.filter(r => r.v >= MIN_SETS).length;
 
   const region = k => {
     const isDelt = k === 'FRONT_DELT' || k === 'SIDE_DELT';
@@ -1247,7 +1352,7 @@ function VolumeTracker({ prog }){
       <div className="px-4 py-3 border-b border-stone-200 bg-stone-50">
         <div className="text-sm font-semibold text-stone-900">Weekly volume by muscle</div>
         <div className="text-xs text-stone-500 mt-0.5">
-          Weekly sets per muscle. {trained} of {ORDER.length} muscles at 3 or more sets.
+          How your week's sets land across the body.
         </div>
       </div>
 
@@ -1328,9 +1433,411 @@ function VolumeTracker({ prog }){
   );
 }
 
-function ReviewScreen({prog, owned, onSwapAt, onBack, onAccept}){
+// =====================================================
+// PROGRAM AT A GLANCE
+// Everything here is derived from the resolved program, so it stays true
+// after swaps. Rest strings are ranges ('3-5 min'), so the midpoint is used.
+// =====================================================
+const isOptionalDay = d => /optional/i.test(d.name || '');
+
+function restMinutes(s){
+  const m = String(s).match(/(\d+(?:\.\d+)?)(?:\s*-\s*(\d+(?:\.\d+)?))?/);
+  if (!m) return 2;
+  const lo = parseFloat(m[1]);
+  const hi = m[2] ? parseFloat(m[2]) : lo;
+  return (lo + hi) / 2;
+}
+
+// A set is roughly 45 seconds of work, and one rest follows every set — the
+// rest after the last set doubles as the walk to the next exercise.
+function dayStats(day){
+  const rows = day.rows.filter(r => r.exId);
+  let sets = 0, minutes = 0;
+  for (const r of rows){
+    const n = SETS[r.slot.pattern] || 3;
+    sets += n;
+    minutes += n * 0.75 + n * restMinutes(r.rest);
+  }
+  return { exercises: rows.length, sets, minutes };
+}
+
+const round5 = n => Math.round(n / 5) * 5;
+
+function programStats(prog){
+  const core = prog.days.filter(d => !isOptionalDay(d));
+  const optional = prog.days.filter(isOptionalDay);
+  const s = (core.length ? core : prog.days).map(dayStats);
+  const ex = s.map(x => x.exercises);
+  const mins = s.map(x => x.minutes);
+
+  const models = { RPT:0, SS:0, AMRAP:0 };
+  let exerciseCount = 0, rirCaution = 0;
+  for (const d of prog.days) for (const r of d.rows){
+    if (!r.exId) continue;
+    exerciseCount++;
+    if (r.range === 'AMRAP') models.AMRAP++;
+    else {
+      const m = modelFor(r.slot.pattern, r.exId);
+      models[m] = (models[m] || 0) + 1;
+      if (rirFor(r.slot.pattern, r.exId) === RIR_CAUTION) rirCaution++;
+    }
+  }
+
+  return {
+    dayCount: core.length || prog.days.length,
+    optionalCount: optional.length,
+    exMin: Math.min(...ex), exMax: Math.max(...ex),
+    minMin: round5(Math.min(...mins)), minMax: round5(Math.max(...mins)),
+    weeklySets: s.reduce((a, x) => a + x.sets, 0),
+    models,
+    exerciseCount, rirCaution,
+  };
+}
+
+const Stat = ({value, label}) => (
+  <div className="px-4 py-3.5">
+    <div className="text-2xl font-bold text-stone-900 tabular-nums leading-none">{value}</div>
+    <div className="text-xs text-stone-500 mt-1.5 leading-snug">{label}</div>
+  </div>
+);
+
+function ProgramGlance({prog}){
+  const s = programStats(prog);
+  const range = (a, b) => a === b ? `${a}` : `${a}-${b}`;
+  return (
+    <div className="mt-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 rounded-xl border border-stone-200 bg-stone-50 divide-x divide-y sm:divide-y-0 divide-stone-200 overflow-hidden">
+        <Stat
+          value={s.optionalCount ? `${s.dayCount}+${s.optionalCount}` : s.dayCount}
+          label={s.optionalCount ? 'Sessions a week, plus optional' : 'Sessions a week'} />
+        <Stat value={range(s.exMin, s.exMax)} label="Exercises a session" />
+        <Stat value={range(s.minMin, s.minMax)} label="Minutes a session" />
+        <Stat value={s.weeklySets} label="Working sets a week" />
+      </div>
+
+      <p className="mt-2.5 text-xs text-stone-500 leading-relaxed">
+        Session length assumes you take the prescribed rest. It counts the rest between every set as
+        well as the walk to the next exercise, so treat it as the honest upper end rather than the
+        time you spend lifting.
+      </p>
+    </div>
+  );
+}
+
+// =====================================================
+// HOW TO RUN THE PROGRAM
+// The execution rules, spelled out. This is the part clients get wrong, so it
+// is written to be read once in full rather than skimmed.
+// =====================================================
+const H = ({children}) => (
+  <h3 className="mt-10 text-xl font-bold text-stone-900">{children}</h3>
+);
+
+const P = ({children}) => (
+  <p className="mt-3 text-sm text-stone-600 leading-relaxed">{children}</p>
+);
+
+const B = ({children}) => <span className="font-semibold text-stone-900">{children}</span>;
+
+// A worked session. Sets that reached the top of the rep range are marked, so
+// the rule you are being taught is visible in the numbers themselves.
+const LogBlock = ({title, sets, verdict, go}) => (
+  <div className="mt-3 rounded-xl border border-stone-200 overflow-hidden">
+    <div className="px-4 py-2 bg-stone-50 border-b border-stone-200 text-xs font-semibold text-stone-700">
+      {title}
+    </div>
+    <div className="px-4 py-3 space-y-1.5">
+      {sets.map((st, i) => (
+        <div key={i} className="flex items-baseline gap-2 font-mono text-xs">
+          <span className="w-11 text-stone-400 flex-shrink-0">Set {i+1}</span>
+          <span className="w-20 text-right text-stone-800 flex-shrink-0">{st.load}</span>
+          <span className="text-stone-300 flex-shrink-0">×</span>
+          <span className="w-16 text-stone-800 flex-shrink-0">{st.reps}</span>
+          {st.top && (
+            <span className="font-sans text-[10px] tracking-wide text-orange-600 font-semibold">TOP OF RANGE</span>
+          )}
+        </div>
+      ))}
+    </div>
+    <div className={`px-4 py-2.5 text-xs leading-relaxed border-t ${
+      go ? 'bg-orange-50 border-orange-200 text-stone-800' : 'bg-white border-stone-100 text-stone-600'}`}>
+      {verdict}
+    </div>
+  </div>
+);
+
+const EffortRow = ({icon, what, verdict, good}) => (
+  <div className="flex gap-3 py-3 border-b border-stone-100 last:border-0">
+    <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center mt-0.5 ${
+      good ? 'bg-orange-500 text-white' : 'bg-stone-200 text-stone-500'}`}>
+      {icon}
+    </span>
+    <div className="flex-1 min-w-0">
+      <div className="text-sm text-stone-900 leading-snug">{what}</div>
+      <div className="text-xs text-stone-500 mt-1 leading-relaxed">{verdict}</div>
+    </div>
+  </div>
+);
+
+function HowToRun({prog}){
+  const s = programStats(prog);
+  const cautioned = s.rirCaution;
+  return (
+    <div>
+      {/* the whole system, before any detail */}
+      <div className="mt-6 rounded-xl bg-stone-900 p-6">
+        <div className="text-xs font-semibold text-orange-400 tracking-widest">THE WHOLE SYSTEM</div>
+        <ol className="mt-4 space-y-3 text-sm text-stone-200 leading-relaxed">
+          <li className="flex gap-3">
+            <span className="text-orange-400 font-bold flex-shrink-0">1</span>
+            <span>Stop every set at the RIR target on its row. Never fail a rep, and never grind one out.</span>
+          </li>
+          <li className="flex gap-3">
+            <span className="text-orange-400 font-bold flex-shrink-0">2</span>
+            <span>On exercises marked <span className="font-semibold text-white">RPT</span>, your heaviest set is first, then you drop the weight 5-10% for each following set.</span>
+          </li>
+          <li className="flex gap-3">
+            <span className="text-orange-400 font-bold flex-shrink-0">3</span>
+            <span>On exercises marked <span className="font-semibold text-white">SS</span>, you use the same weight for all sets.</span>
+          </li>
+          <li className="flex gap-3">
+            <span className="text-orange-400 font-bold flex-shrink-0">4</span>
+            <span>Add reps until you reach the top of the rep range in <span className="font-semibold text-white">every</span> set. Then add the smallest weight increment available and build the reps back up.</span>
+          </li>
+        </ol>
+        <p className="mt-4 pt-4 border-t border-stone-700 text-xs text-stone-400 leading-relaxed">
+          That is the entire program. Everything below explains how to do those four things properly.
+        </p>
+      </div>
+
+      {/* ---- effort -------------------------------------------------- */}
+      <H>1. How hard to take each set</H>
+      <P>
+        RIR means reps in reserve: the number of reps you could still have done when you stopped.
+        The number next to each exercise is your target, and it is not the same on every exercise.
+      </P>
+      <P>
+        <B>The goal is to do every rep you can while still being confident you can complete the rep
+        you are doing.</B> The moment you are no longer sure the next rep will go up, the set is
+        over. That is what {RIR_DEFAULT} RIR means in practice.
+      </P>
+      <P>
+        Two things you never do. <B>You do not fail a rep.</B> Getting stuck halfway up costs you the
+        rest of the session and buys you nothing. <B>You do not grind.</B> If a rep crawls, takes
+        several seconds and empties you out, that was one rep too far. You will feel it in every
+        exercise that follows.
+      </P>
+
+      <div className="mt-5 rounded-xl border border-stone-200 px-4 py-1">
+        <EffortRow good={false} icon={<X className="w-3 h-3" />}
+          what="You racked it with three or more clean reps still in you"
+          verdict="Too early. The set was too far from failure to do much." />
+        <EffortRow good icon={<Check className="w-3 h-3" />}
+          what="You stopped because you were no longer sure the next rep would go up"
+          verdict="Correct. This is the target on every set marked 0-1 RIR." />
+        <EffortRow good={false} icon={<AlertTriangle className="w-3 h-3" />}
+          what="Your last rep ground out over several seconds"
+          verdict="One rep too far. It cost you the rest of the session." />
+        <EffortRow good={false} icon={<X className="w-3 h-3" />}
+          what="You attempted a rep and could not complete it"
+          verdict="Too far. There is no reason to fail a rep on this program." />
+      </div>
+
+      {/* the 1 RIR exception */}
+      <div className="mt-8 rounded-xl border-2 border-orange-500 bg-orange-50 p-5">
+        <div className="flex items-center gap-2.5">
+          <span className="px-2 py-0.5 rounded bg-orange-500 text-white text-[10px] font-bold tracking-wider">
+            RIR {RIR_CAUTION}
+          </span>
+          <span className="text-sm font-bold text-stone-900">The big movements stop a rep earlier</span>
+        </div>
+        <p className="mt-3 text-sm text-stone-700 leading-relaxed">
+          On these you stop while <B>certain</B> you had one more rep in you. Not hopeful. Certain.
+          And you should be equally certain that the rep you left would have been ugly: the slow
+          grinder that takes everything out of you, or one you could only have finished by letting
+          your technique go.
+        </p>
+        <p className="mt-3 text-sm text-stone-700 leading-relaxed">
+          The reasons are not really about getting pinned under a bar. <B>Technique breaks down
+          before the muscle does</B>, and a rep rescued with a rounded back or a shifted hip is where
+          injuries come from. <B>Heavy compounds are also expensive.</B> A set of leg press taken to
+          true failure wipes you out far more than one taken to {RIR_CAUTION} RIR, and everything
+          later in the session pays for it. On machines it is often hard to tell where true failure
+          even is, so aiming at it means going past it.
+        </p>
+        <p className="mt-3 text-sm text-stone-700 leading-relaxed">
+          Every squat-type movement, hip hinge and hip thrust is in this group, along with barbell
+          and dumbbell pressing, overhead work, weighted pull-ups and chin-ups, barbell rows and
+          skullcrushers.
+          {cautioned > 0
+            ? ` ${cautioned} of your ${s.exerciseCount} exercises ${cautioned === 1 ? 'is' : 'are'} marked ${RIR_CAUTION} RIR, and the rest are ${RIR_DEFAULT}. The number is on every row above, so you never have to remember which is which.`
+            : ` None of your exercises fall into this group, so every set in your program is ${RIR_DEFAULT} RIR.`}
+        </p>
+      </div>
+
+      {/* ---- set models ---------------------------------------------- */}
+      <H>2. The two set models</H>
+      <P>
+        Every exercise in your program is marked RPT or SS. The mark tells you what to do with the
+        weight between sets, and nothing else changes.
+      </P>
+
+      <div className="mt-5 rounded-xl border border-stone-200 p-5">
+        <div className="flex items-center gap-2.5">
+          <ModelBadge model="RPT" />
+          <span className="text-sm font-bold text-stone-900">Reverse Pyramid Training</span>
+        </div>
+        <P>
+          Your heaviest set comes first, while you are fresh. Then you reduce the weight 5-10% for
+          each following set. Used on your compound lifts and anything else loaded heavily enough to
+          warrant it, which is {s.models.RPT} {s.models.RPT === 1 ? 'exercise' : 'exercises'} in your
+          program.
+        </P>
+        <LogBlock title="Incline Barbell Press, 3 sets of 6-8"
+          sets={[{load:'60 kg', reps:8, top:true}, {load:'57.5 kg', reps:8, top:true}, {load:'55 kg', reps:8, top:true}]}
+          verdict="Each set is taken to your RIR target. The weight drops just enough to keep you inside the same rep range as fatigue builds." />
+        <P>
+          If you kept the same weight for all three sets, your reps would fall away, or you would
+          have to hold back on the first sets to survive the last. RPT keeps you inside the target
+          range and close to your limit on every set, which is what avoids junk volume: sets too far
+          from failure to be worth doing.
+        </P>
+      </div>
+
+      <div className="mt-4 rounded-xl border border-stone-200 p-5">
+        <div className="flex items-center gap-2.5">
+          <ModelBadge model="SS" />
+          <span className="text-sm font-bold text-stone-900">Straight Sets</span>
+        </div>
+        <P>
+          Same weight across all sets. Used on isolation exercises and smaller muscles that recover
+          well between sets, where an RPT drop would leave you lifting almost nothing by the third
+          set. Used on {s.models.SS} {s.models.SS === 1 ? 'exercise' : 'exercises'} in your program.
+        </P>
+        <LogBlock title="Dumbbell Lateral Raise, 3 sets of 10-15"
+          sets={[{load:'10 kg', reps:14}, {load:'10 kg', reps:10}, {load:'10 kg', reps:9}]}
+          verdict="Your reps drop across sets and that is expected. You hold the load and work on adding reps session to session." />
+      </div>
+
+      {/* ---- progression --------------------------------------------- */}
+      <H>3. How you progress: multi-set double progression</H>
+      <P>
+        This is the same on every exercise, RPT or SS. It is called double progression because you
+        progress two things in a fixed order: first reps, then weight. Never both at once.
+      </P>
+
+      <div className="mt-5 space-y-2">
+        <div className="rounded-xl border-2 border-stone-900 p-4">
+          <div className="flex items-center gap-2.5">
+            <span className="w-6 h-6 rounded-full bg-stone-900 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">1</span>
+            <span className="text-sm font-bold text-stone-900">Build reps</span>
+          </div>
+          <p className="mt-2 text-sm text-stone-600 leading-relaxed">
+            Keep the weight exactly where it is and add reps session to session. You are trying to
+            reach the top number of the rep range in <B>every set</B>, not just the first one.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 pl-4 text-xs text-stone-500">
+          <ArrowRight className="w-3.5 h-3.5 rotate-90 text-stone-400" />
+          <span>only once every set is at the top of the range</span>
+        </div>
+        <div className="rounded-xl border-2 border-orange-500 bg-orange-50 p-4">
+          <div className="flex items-center gap-2.5">
+            <span className="w-6 h-6 rounded-full bg-orange-500 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">2</span>
+            <span className="text-sm font-bold text-stone-900">Add weight</span>
+          </div>
+          <p className="mt-2 text-sm text-stone-700 leading-relaxed">
+            Increase by the smallest increment available, on every set. Your reps will drop back
+            toward the bottom of the range. That is not a setback, it is the whole mechanism.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 pl-4 text-xs text-stone-500">
+          <ArrowRight className="w-3.5 h-3.5 rotate-90 text-stone-400" />
+          <span>now go back to step 1 and build the reps back up</span>
+        </div>
+      </div>
+
+      <P>Worked through in full, on an exercise prescribed as 3 sets of 6-8 reps.</P>
+      <LogBlock title="Workout 1"
+        sets={[{load:'60 kg', reps:7}, {load:'57.5 kg', reps:7}, {load:'55 kg', reps:8, top:true}]}
+        verdict="No weight increase. Set 3 reached 8, but sets 1 and 2 stopped at 7. You need one more rep in each of them before anything changes. Next session you attack the same weights." />
+      <LogBlock title="Workout 2"
+        sets={[{load:'60 kg', reps:8, top:true}, {load:'57.5 kg', reps:8, top:true}, {load:'55 kg', reps:8, top:true}]}
+        go
+        verdict="Every set is at the top of the range. You have earned the increase. Next session, add the smallest increment available to all three sets. On a barbell that is usually 2.5 kg." />
+      <LogBlock title="Workout 3"
+        sets={[{load:'62.5 kg', reps:7}, {load:'60 kg', reps:7}, {load:'57.5 kg', reps:7}]}
+        verdict="The extra 2.5 kg cost you a rep on each set, which is exactly what should happen. You are now back in step 1, building reps at a heavier load than you were handling three sessions ago. That is the progress." />
+
+      <P>
+        Straight sets work the same way. Nothing about the two steps changes, only the fact that the
+        load is the same across all sets.
+      </P>
+      <LogBlock title="Lateral Raise, 3 sets of 10-15 · three sessions in a row"
+        sets={[{load:'10 kg', reps:'14, 10, 9'}, {load:'10 kg', reps:'15, 13, 11'}, {load:'10 kg', reps:'15, 15, 15', top:true}]}
+        go
+        verdict="Three sessions at the same load, adding reps each time. On the third all three sets hit 15, so the next session moves up by the smallest increment and the rep count drops back into the low teens." />
+
+      <H>Dumbbell exercises drop more reps</H>
+      <P>
+        A dumbbell exercise loads both hands, so the smallest increment is doubled. Going up 2.5 kg
+        per hand is a 5 kg jump in total, which is why dumbbell exercises are given wider rep ranges
+        in your program. Expect to lose three or four reps after an increase rather than one or two.
+      </P>
+      <LogBlock title="Incline Dumbbell Press, 3 sets of 6-10"
+        sets={[{load:'30 kg', reps:10, top:true}, {load:'27.5 kg', reps:10, top:true}, {load:'25 kg', reps:10, top:true}]}
+        go
+        verdict="All sets at the top, so you go up 2.5 kg per hand next session. Loads shown are per hand." />
+      <LogBlock title="The session after"
+        sets={[{load:'32.5 kg', reps:6}, {load:'30 kg', reps:7}, {load:'27.5 kg', reps:7}]}
+        verdict="Reps fell by three to four because the total load went up by 5 kg. The wider rep range exists to absorb exactly this. Build back to 10 across all three sets to earn the next increase." />
+
+      <div className="mt-5 rounded-xl bg-stone-50 border border-stone-200 p-5">
+        <div className="text-sm font-semibold text-stone-900">This is not training by feel</div>
+        <p className="mt-2 text-sm text-stone-600 leading-relaxed">
+          Before every set you check what you did last time on that exercise and you try to beat it,
+          by a rep or by an increment. Without a written record of every set you cannot do that, and
+          without that there is no progression. This is what the ShredSmart app is for once Radu has
+          loaded your code.
+        </p>
+      </div>
+
+      {/* ---- warmup --------------------------------------------------- */}
+      <H>4. Warming up</H>
+      <P>
+        Before the <B>first</B> exercise for each muscle group, work up to your first working set.
+        Three quick sets, minimal rest between them, just enough time to change the weight.
+      </P>
+      <LogBlock title="Warm-up, when your first working set is 60 kg"
+        sets={[{load:'30 kg', reps:5}, {load:'45 kg', reps:3}, {load:'55 kg', reps:2}]}
+        verdict="Roughly 50%, 75% and 90% of your working weight. Move through them with no real rest, then rest 2-3 minutes before your first working set." />
+      <P>
+        For later exercises hitting a muscle you have already warmed up, you do not need to repeat
+        this. For small isolation work the full protocol is overkill: one set to feel the movement
+        and get reacquainted with the weight is enough.
+      </P>
+    </div>
+  );
+}
+
+// =====================================================
+// PROGRAM SCREEN
+// One page. The client reviews and swaps exercises, learns how to run the
+// system, and only then reaches the code at the bottom. The code is always
+// current: it is regenerated from the program on every render, so a swap can
+// never leave a stale code on screen.
+// =====================================================
+function ProgramScreen({prog, seq, owned, onSwapAt, onBack, onIssue, onRestart}){
   const [swap, setSwap] = useState(null);
-  const holes = prog.unserviceable;
+  const [copied, setCopied] = useState(false);
+  const code = encodeProgram(prog, seq);
+  const copy = () => {
+    navigator.clipboard?.writeText(code);
+    setCopied(true);
+    onIssue();
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <>
       <Card className="max-w-2xl">
@@ -1338,114 +1845,84 @@ function ReviewScreen({prog, owned, onSwapAt, onBack, onAccept}){
         <Eyebrow>Your program</Eyebrow>
         <h2 className="mt-3 text-2xl font-bold text-stone-900">{prog.name}</h2>
         <p className="mt-2 text-stone-600 text-sm leading-relaxed">
-          The optimal split for you based on the equipment you have. If an exercise doesn't work for you
-          (you can't do it, you don't like it, or it's never free when you train) hit Swap and pick
-          another variation of the same movement. The exercises are listed in order of recommendation,
-          so try to choose from the top of the list if possible.
+          The best program your equipment and schedule allow. Read it through, swap anything that
+          does not work for you, then send Radu the code at the bottom of this page and he will load
+          it into the ShredSmart app.
         </p>
-
-        <GapNotice holes={holes} />
-
-        <div className="mt-6 space-y-6">
-          {prog.days.map((d, di) => (
-            <div key={di}>
-              <div className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-2">{d.name}</div>
-              <div className="border border-stone-200 rounded-xl divide-y divide-stone-100">
-                {d.rows.map((r, ri) => (
-                  <ExerciseRow key={ri} row={r} onSwap={r.exId ? () => setSwap({di, ri}) : null} />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <VolumeTracker prog={prog} />
-
-        <PrimaryButton onClick={onAccept} className="mt-7">
-          This is my program <ArrowRight className="w-4 h-4" />
-        </PrimaryButton>
-      </Card>
-
-      {swap && (
-        <SwapMenu row={prog.days[swap.di].rows[swap.ri]} prog={prog} di={swap.di} ri={swap.ri} owned={owned}
-          onClose={() => setSwap(null)}
-          onPick={id => { onSwapAt(swap.di, swap.ri, id); setSwap(null); }} />
-      )}
-    </>
-  );
-}
-
-function FinalScreen({prog, seq, owned, onSwapAt, onInstructions, onRestart}){
-  const [swap, setSwap] = useState(null);
-  const [copied, setCopied] = useState(false);
-  const code = encodeProgram(prog, seq);
-  const copy = () => {
-    navigator.clipboard?.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-  return (
-    <>
-      <Card className="max-w-2xl">
-        <Eyebrow>Done</Eyebrow>
-        <h2 className="mt-3 text-2xl font-bold text-stone-900">Your program is ready.</h2>
-        <p className="mt-2 text-stone-600 text-sm leading-relaxed">
-          Send this code to Radu. He'll load your program into the ShredSmart app so you can start
-          training and logging every set.
-        </p>
-
-        <div className="mt-6 bg-stone-900 rounded-xl p-5">
-          <div className="text-xs text-stone-400 uppercase tracking-wider mb-2">Your OptiWorkout code</div>
-          <div className="font-mono text-sm text-white break-all leading-relaxed">{code}</div>
-          <button onClick={copy}
-            className="mt-4 w-full bg-white hover:bg-stone-100 text-stone-900 font-medium py-2.5 px-4 rounded-full transition-colors flex items-center justify-center gap-2 text-sm">
-            {copied ? <><Check className="w-4 h-4" /> Copied</> : <><Copy className="w-4 h-4" /> Copy code</>}
-          </button>
-        </div>
 
         <GapNotice holes={prog.unserviceable || []} />
 
-        {seq > 1 && (
-          <div className="mt-4 bg-orange-50 border border-orange-200 rounded-xl p-4">
-            <p className="text-sm text-stone-700 leading-relaxed">
-              <span className="font-semibold">This replaces your previous code.</span> Send Radu this one.
-              Any earlier code no longer matches your program.
-            </p>
-          </div>
-        )}
+        <ProgramGlance prog={prog} />
 
-        <button onClick={onInstructions}
-          className="mt-4 w-full bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-xl p-4 text-left transition-colors flex items-center gap-3">
-          <BookOpen className="w-5 h-5 text-orange-500 flex-shrink-0" />
-          <div className="flex-1">
-            <div className="text-sm font-semibold text-stone-900">Read this before your first session</div>
-            <div className="text-xs text-stone-500 mt-0.5">How to progress, how hard to push, how to warm up.</div>
-          </div>
-          <ArrowRight className="w-4 h-4 text-stone-400 flex-shrink-0" />
-        </button>
+        {/* ---- the program ------------------------------------------- */}
+        <div className="mt-10 pt-8 border-t border-stone-200">
+          <h3 className="text-xl font-bold text-stone-900">Your workouts</h3>
+          <p className="mt-2 text-sm text-stone-600 leading-relaxed">
+            Run the exercises in the order listed. The badge on each row is the set model:{' '}
+            <span className="font-semibold text-stone-900">RPT</span> means you drop the weight
+            between sets, <span className="font-semibold text-stone-900">SS</span> means you keep it
+            the same. Both are explained further down.
+          </p>
+          <p className="mt-3 text-sm text-stone-600 leading-relaxed">
+            If an exercise does not work for you, because you cannot do it, you do not like it, or
+            it is never free when you train, hit Swap and pick another variation of the same
+            movement. Options are listed in order of recommendation, so choose from the top where
+            you can.
+          </p>
 
-        <div className="mt-6 space-y-6">
-          {prog.days.map((d, di) => (
-            <div key={di}>
-              <div className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-2">{d.name}</div>
-              <div className="border border-stone-200 rounded-xl divide-y divide-stone-100">
-                {d.rows.map((r, ri) => (
-                  <ExerciseRow key={ri} row={r} detailed onSwap={r.exId ? () => setSwap({di, ri}) : null} />
-                ))}
-              </div>
-            </div>
-          ))}
+          <div className="mt-6 space-y-6">
+            {prog.days.map((d, di) => (
+              <DayBlock key={di} day={d} detailed onSwap={ri => setSwap({di, ri})} />
+            ))}
+          </div>
+
+          <VolumeTracker prog={prog} />
         </div>
 
-        <VolumeTracker prog={prog} />
+        {/* ---- how to run it ----------------------------------------- */}
+        <div className="mt-10 pt-8 border-t border-stone-200">
+          <Eyebrow>Read before your first session</Eyebrow>
+          <h2 className="mt-3 text-2xl font-bold text-stone-900">How to run this program.</h2>
+          <p className="mt-2 text-stone-600 text-sm leading-relaxed">
+            The exercises matter less than what you do with them. Without progression there is no
+            reason for your body to change, and progression only works if you run it the same way
+            every session. Read this once, properly.
+          </p>
+          <HowToRun prog={prog} />
+        </div>
 
-        <p className="mt-4 text-xs text-stone-500 leading-relaxed">
-          RPT is Reverse Pyramid Training: heaviest set first, then drop the weight 5-10% each set.
-          SS is Straight Sets: the same weight across all sets. RIR is reps in reserve — how many
-          you should have left when you stop.
-        </p>
+        {/* ---- the code ---------------------------------------------- */}
+        <div className="mt-10 pt-8 border-t border-stone-200">
+          <Eyebrow>Last step</Eyebrow>
+          <h2 className="mt-3 text-2xl font-bold text-stone-900">Send Radu your code.</h2>
+          <p className="mt-2 text-stone-600 text-sm leading-relaxed">
+            This code is your program. Radu loads it into the ShredSmart app and every exercise, rep
+            range, rest time and effort target comes across exactly as it appears above, so you can
+            start training and logging every set. Settle on your exercises first, because the code
+            changes every time you swap one.
+          </p>
 
-        <button onClick={onRestart} className="mt-6 w-full text-sm text-stone-500 hover:text-stone-900 transition-colors">
+          <div className="mt-6 bg-stone-900 rounded-xl p-5">
+            <div className="text-xs text-stone-400 uppercase tracking-wider mb-2">Your OptiWorkout code</div>
+            <div className="font-mono text-sm text-white break-all leading-relaxed">{code}</div>
+            <button onClick={copy}
+              className="mt-4 w-full bg-white hover:bg-stone-100 text-stone-900 font-medium py-2.5 px-4 rounded-full transition-colors flex items-center justify-center gap-2 text-sm">
+              {copied ? <><Check className="w-4 h-4" /> Copied</> : <><Copy className="w-4 h-4" /> Copy code</>}
+            </button>
+          </div>
+
+          {seq > 1 && (
+            <div className="mt-4 bg-orange-50 border border-orange-200 rounded-xl p-4">
+              <p className="text-sm text-stone-700 leading-relaxed">
+                <span className="font-semibold">You changed your program after copying a code.</span>{' '}
+                Send Radu the one above. Any code you sent earlier no longer matches what is on this
+                page.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <button onClick={onRestart} className="mt-10 w-full text-sm text-stone-500 hover:text-stone-900 transition-colors">
           Start over
         </button>
       </Card>
@@ -1486,114 +1963,6 @@ function LoadCodeScreen({onBack, onLoaded}){
   );
 }
 
-// ---- INSTRUCTIONS --------------------------------------------------
-const Section = ({title, children}) => (
-  <div className="mt-8 first:mt-0">
-    <h3 className="text-lg font-bold text-stone-900">{title}</h3>
-    <div className="mt-3 space-y-3 text-sm text-stone-600 leading-relaxed">{children}</div>
-  </div>
-);
-
-const SetTable = ({rows, note}) => (
-  <div className="bg-stone-50 border border-stone-200 rounded-xl p-4">
-    <div className="space-y-1 font-mono text-xs text-stone-800">
-      {rows.map((r,i) => <div key={i}>{r}</div>)}
-    </div>
-    {note && <div className="mt-3 text-xs text-stone-600 leading-relaxed">{note}</div>}
-  </div>
-);
-
-function InstructionsScreen({onBack}){
-  return (
-    <Card className="max-w-2xl">
-      <BackButton onClick={onBack} />
-      <Eyebrow>How to run this program</Eyebrow>
-      <h2 className="mt-3 text-2xl font-bold text-stone-900">The progression is the program.</h2>
-      <p className="mt-2 text-stone-600 text-sm leading-relaxed">
-        The exercises matter less than what you do with them. Without progression there is no reason
-        for your body to change. Read this once, properly, before your first session.
-      </p>
-
-      <Section title="Reverse Pyramid Training (RPT)">
-        <p>
-          On your compound lifts you perform your heaviest set first, while you're fresh, then reduce
-          the weight 5-10% for each following set.
-        </p>
-        <SetTable rows={['Set 1:  60 kg × 8', 'Set 2:  57.5 kg × 8', 'Set 3:  55 kg × 8']} />
-        <p>
-          Take every set to 0-1 reps in reserve. In practice that means performing every rep you can.
-          As fatigue builds, the weight drops just enough to keep you in the same rep range.
-        </p>
-        <p>
-          If you kept the same weight across all sets, your reps would fall away, or you'd have to hold
-          more back on the early sets. RPT keeps you inside the target range on every set, close to
-          failure on every set, and avoids junk volume — sets too far from failure to do anything.
-        </p>
-      </Section>
-
-      <Section title="Straight Sets (SS)">
-        <p>
-          On isolation exercises and smaller muscles that recover well between sets, you use the same
-          load for all three sets. With RPT the weight would drop too far to be worth doing.
-        </p>
-        <SetTable
-          rows={['Week 1:  10 kg × 12, 10, 9', 'Week 2:  10 kg × 12, 12, 11', 'Week 3:  10 kg × 12, 12, 12  → add weight']}
-          note="Hold the load and build reps until you hit the top of the range in all three sets. Then increase." />
-      </Section>
-
-      <Section title="Multi-set double progression">
-        <p>
-          This is how you progress on everything, RPT or straight sets. Two steps, in order.
-        </p>
-        <p>
-          <span className="font-semibold text-stone-900">One, build reps.</span> Hit the top of the rep
-          range in every set.{' '}
-          <span className="font-semibold text-stone-900">Two, add weight.</span> Only once you've hit
-          the top in all sets, increase by the smallest increment available.
-        </p>
-        <SetTable
-          rows={[
-            'Workout 1:  60 × 7   57.5 × 7   55 × 8    → not yet',
-            'Workout 2:  60 × 8   57.5 × 8   55 × 8    → add weight',
-            'Workout 3:  62.5 × 7 60 × 7     57.5 × 7  → build again',
-          ]}
-          note="After a load increase your reps drop by one or two. That's expected. Build them back up to earn the next increase." />
-        <p>
-          This is not autoregulation. You are not training by feel. Before every set, check what you did
-          last time and beat it. Track every rep of every set — without a log there is no progression.
-        </p>
-      </Section>
-
-      <Section title="Dumbbell exercises progress differently">
-        <p>
-          Dumbbell movements carry wider rep ranges because you add weight to both hands at once, so
-          each jump is a much larger percentage of the total load.
-        </p>
-        <SetTable
-          rows={[
-            'Workout 2:  30 × 10   27.5 × 10   25 × 10   → add weight',
-            'Workout 3:  32.5 × 6  30 × 7      27.5 × 7',
-          ]}
-          note="Going up 2.5 kg per hand is a 5 kg jump, so expect to lose three or four reps rather than one or two. The wider range is there to absorb that." />
-      </Section>
-
-      <Section title="Warming up">
-        <p>
-          Before the first exercise for each muscle group, work up to your first working set. Three
-          quick sets, minimal rest between them.
-        </p>
-        <SetTable
-          rows={['5 reps  @ ~50% of working weight', '3 reps  @ ~75%', '2 reps  @ ~90%', '→ rest 2-3 min, then your first working set']}
-          note="For later exercises hitting the same muscle you don't need to warm up again. For small isolation work, one set to feel the movement is enough." />
-      </Section>
-
-      <PrimaryButton onClick={onBack} className="mt-8">
-        Back to my program <ArrowRight className="w-4 h-4" />
-      </PrimaryButton>
-    </Card>
-  );
-}
-
 // =====================================================
 // APP
 // =====================================================
@@ -1605,11 +1974,13 @@ export default function App(){
   const [owned, setOwned] = useState(new Set());
   const [prog, setProg] = useState(null);
   const [seq, setSeq] = useState(1);
-  const [swapsMade, setSwapsMade] = useState(0);
+  // True once the client has actually copied a code. Any swap after that point
+  // supersedes what they sent, so the sequence number has to move.
+  const [issued, setIssued] = useState(false);
 
   useEffect(() => {
     if (screen !== 'building') return;
-    const t = setTimeout(() => setScreen('review'), 2000);
+    const t = setTimeout(() => setScreen('program'), 2000);
     return () => clearTimeout(t);
   }, [screen]);
 
@@ -1631,15 +2002,17 @@ export default function App(){
     });
     const counters = {};
     days2[di] = { ...days2[di], rows: days2[di].rows.map(r =>
-      r.exId ? { ...r, range: computeRange(r.slot.pattern, r.exId, counters), rest: REST[r.slot.pattern] } : r) };
+      r.exId ? { ...r, range: computeRange(r.slot.pattern, r.exId, counters), rest: restFor(r.slot.pattern, r.exId) } : r) };
     setProg({ ...prog, days: days2 });
-    if (screen === 'final') setSeq(seq + 1);
-    setSwapsMade(swapsMade + 1);
+    // Only the first change after a copy supersedes what was sent. Further
+    // swaps before the next copy are part of the same revision, so the
+    // sequence number tracks codes actually issued, not edits made.
+    if (issued){ setSeq(seq + 1); setIssued(false); }
   };
 
   const restart = () => {
     setScreen('home'); setSs1(null); setDays(null); setSkelId(null);
-    setOwned(new Set()); setProg(null); setSeq(1); setSwapsMade(0);
+    setOwned(new Set()); setProg(null); setSeq(1); setIssued(false);
   };
 
   let body;
@@ -1674,20 +2047,13 @@ export default function App(){
     case 'building':
       body = <LoadingScreen />;
       break;
-    case 'review':
-      body = <ReviewScreen prog={prog} owned={owned} onSwapAt={swapAt}
-        onBack={() => setScreen('equipment')} onAccept={() => setScreen('final')} />;
-      break;
-    case 'final':
-      body = <FinalScreen prog={prog} seq={seq} owned={owned} onSwapAt={swapAt}
-        onInstructions={() => setScreen('instructions')} onRestart={restart} />;
-      break;
-    case 'instructions':
-      body = <InstructionsScreen onBack={() => setScreen(prog ? 'final' : 'home')} />;
+    case 'program':
+      body = <ProgramScreen prog={prog} seq={seq} owned={owned} onSwapAt={swapAt}
+        onBack={() => setScreen('equipment')} onIssue={() => setIssued(true)} onRestart={restart} />;
       break;
     case 'load':
       body = <LoadCodeScreen onBack={() => setScreen('home')}
-        onLoaded={r => { setProg(r); setSkelId(r.skelId); setSeq(r.seq); setOwned(PRESET_FULL); setScreen('final'); }} />;
+        onLoaded={r => { setProg(r); setSkelId(r.skelId); setSeq(r.seq); setOwned(PRESET_FULL); setIssued(true); setScreen('program'); }} />;
       break;
     default:
       body = <HomeScreen onContinue={() => setScreen('paste')} onCustom={() => setScreen('days')} onReload={() => setScreen('load')} />;
