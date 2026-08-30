@@ -1303,6 +1303,9 @@ function VolumeTracker({ prog }){
 
       <div className="px-4 pb-4 border-t border-stone-100 pt-3">
         <div className="text-xs font-semibold text-stone-700 mb-1.5">How the sets are counted</div>
+        <p className="mt-2 text-xs text-stone-500 leading-relaxed">
+          1 for primary, 0.5 for secondary and stabilisers:
+        </p>
         <p className="text-xs text-stone-500 leading-relaxed">
           A set counts once for the muscle the exercise is built around, and for
           any muscle an isolation exercise targets directly. A supporting muscle
