@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ArrowRight, ArrowLeft, Check, Copy, X, AlertTriangle, BookOpen, Loader2, ChevronDown } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Check, Copy, X, AlertTriangle, BookOpen, Loader2, ChevronDown, Plus, GripVertical, RotateCcw } from 'lucide-react';
 
 // =====================================================
 // OPTIWORKOUT — v1
@@ -580,6 +580,8 @@ function encodeProgram(prog, seq = 1){
 }
 
 function decodeProgram(code){
+  // Custom splits carry their own schema; route them before the OP1 parse.
+  if (/^OPC1-/.test(String(code).trim())) return decodeCustom(code);
   const m = String(code).trim().match(/^OP1-([A-Za-z0-9\-_]+)-([a-z0-9]{2})$/);
   if (!m) return { ok:false, error:"That doesn't look like an OptiWorkout code. They start with OP1." };
   let payload;
@@ -605,6 +607,133 @@ function decodeProgram(code){
   }
   return { ok:true, seq:parseInt(seqStr,10)||1, skelId, name:skel.name, days, unserviceable:[] };
 }
+
+// =====================================================
+// CUSTOM SPLIT — spec resolution
+// A skeleton program derives sets, reps, rest, effort and set model from the
+// pattern at every point of use. A custom split needs the same defaults, but
+// every one of them has to be overridable, so the defaults are resolved once
+// here and the overrides layered on top. An override is stored ONLY when it
+// differs from the default, so retuning a table still moves every field the
+// coach never touched.
+// =====================================================
+function autoSpec(pattern, exId, counters){
+  const range = computeRange(pattern, exId, counters);
+  const amrap = range === 'AMRAP';
+  return {
+    sets:  SETS[pattern] || 3,
+    range,
+    rest:  restFor(pattern, exId),
+    rir:   amrap ? '0' : rirFor(pattern, exId),
+    model: amrap ? 'AMRAP' : modelFor(pattern, exId),
+  };
+}
+
+// Rep ranges depend on POSITION in the session (the second push of a session is
+// two reps higher), so a whole column has to resolve in order, every time it
+// changes. Fields the coach edited survive that recomputation.
+function resolveItems(items){
+  const counters = {};
+  return items.map(it => {
+    const auto = autoSpec(it.pattern, it.exId, counters);
+    const ov = it.ov || {};
+    return { slot:{pattern:it.pattern}, exId:it.exId, uid:it.uid, ov, ...auto, ...ov };
+  });
+}
+
+function buildCustomProgram(b){
+  // A column left empty is not a workout, so it does not become one.
+  const days = b.days.map((items, i) => ({
+    name: (b.names[i] || '').trim() || `Workout ${i+1}`,
+    rows: resolveItems(items),
+  })).filter(d => d.rows.length);
+  return { custom:true, name:'Custom Split', days, unserviceable:[] };
+}
+
+// =====================================================
+// OPC CODE — schema v1.  OPC1-<base64url(payload)>-<checksum>
+// payload = seq | dayName~row,row,... ; dayName~row,row,...
+// row     = patternToken : exerciseToken : sets : reps : rest : rir : model
+// Trailing override fields are dropped when empty, so an untouched row costs
+// four characters. Exercise tokens come from the same frozen list OP1 uses.
+// =====================================================
+// FROZEN. Tokens are positions in this list, so it is APPEND-ONLY: never sort
+// it, never reorder it, never remove an entry.
+const PATTERN_ORDER = [
+  'SQUAT','HINGE','GLUTE','LEG_EXT','LEG_CURL','CALF','INCLINE_PRESS','FLAT_PRESS',
+  'CHEST_ISO','VERT_PUSH','HORIZ_PULL','VERT_PULL','TRAPS','SIDE_DELT','REAR_DELT',
+  'TRI_OH','TRI_PUSHDOWN','BICEPS','ABS','NECK_CURL','NECK_EXT',
+];
+const PAT_TO_TOKEN = {}; const TOKEN_TO_PAT = {};
+PATTERN_ORDER.forEach((p,i)=>{ PAT_TO_TOKEN[p]=i.toString(36); TOKEN_TO_PAT[i.toString(36)]=p; });
+
+// Day names and override fields are free text, so the delimiters are stripped
+// out of them on the way in rather than escaped.
+const cleanField = s => String(s == null ? '' : s).replace(/[|;~,:]/g, ' ').replace(/\s+/g,' ').trim();
+
+// btoa only handles latin-1, and day names are typed by a human. Encode to
+// UTF-8 bytes first so an accented workout name survives the round trip.
+const b64urlUtf8 = s => b64url(Array.from(new TextEncoder().encode(s), b => String.fromCharCode(b)).join(''));
+const unb64urlUtf8 = s => new TextDecoder().decode(Uint8Array.from(unb64url(s), c => c.charCodeAt(0)));
+
+function encodeCustom(prog, seq = 1){
+  const body = prog.days.map(d => {
+    const rows = d.rows.filter(r => r.exId).map(r => {
+      const ov = r.ov || {};
+      const f = [
+        PAT_TO_TOKEN[r.slot.pattern], ID_TO_TOKEN[r.exId],
+        ov.sets  != null ? String(ov.sets) : '',
+        cleanField(ov.range), cleanField(ov.rest), cleanField(ov.rir), cleanField(ov.model),
+      ];
+      while (f.length > 2 && f[f.length-1] === '') f.pop();
+      return f.join(':');
+    }).join(',');
+    return `${cleanField(d.name)}~${rows}`;
+  }).join(';');
+  const payload = `${seq}|${body}`;
+  return `OPC1-${b64urlUtf8(payload)}-${checksum2(payload)}`;
+}
+
+function decodeCustom(code){
+  const m = String(code).trim().match(/^OPC1-([A-Za-z0-9\-_]+)-([a-z0-9]{2})$/);
+  if (!m) return { ok:false, error:"That doesn't look like a custom split code. They start with OPC1." };
+  let payload;
+  try { payload = unb64urlUtf8(m[1]); } catch { return { ok:false, error:'That code is damaged. Check it was copied in full.' }; }
+  if (checksum2(payload) !== m[2]) return { ok:false, error:'That code failed its check. A character is likely missing or mistyped.' };
+  const cut = payload.indexOf('|');
+  if (cut < 0) return { ok:false, error:'That code is incomplete.' };
+  const seq = parseInt(payload.slice(0, cut), 10) || 1;
+
+  const days = [];
+  for (const dStr of payload.slice(cut+1).split(';')){
+    const t = dStr.indexOf('~');
+    const name = t < 0 ? '' : dStr.slice(0, t);
+    const rowsStr = t < 0 ? dStr : dStr.slice(t+1);
+    const counters = {}; const rows = [];
+    for (const rStr of rowsStr.split(',')){
+      if (!rStr) continue;
+      const f = rStr.split(':');
+      const pattern = TOKEN_TO_PAT[f[0]];
+      const exId = TOKEN_TO_ID[f[1]];
+      if (!pattern) return { ok:false, error:'That code refers to a movement pattern this version does not have.' };
+      if (!exId)    return { ok:false, error:'That code refers to an exercise this version does not have.' };
+      const auto = autoSpec(pattern, exId, counters);
+      const ov = {};
+      if (f[2]) ov.sets  = Math.max(1, Math.min(20, parseInt(f[2],10) || auto.sets));
+      if (f[3]) ov.range = f[3];
+      if (f[4]) ov.rest  = f[4];
+      if (f[5]) ov.rir   = f[5];
+      if (f[6]) ov.model = f[6];
+      rows.push({ slot:{pattern}, exId, uid:newUid(), ov, ...auto, ...ov });
+    }
+    days.push({ name: name || `Workout ${days.length+1}`, rows });
+  }
+  if (!days.length) return { ok:false, error:'That code has no workouts in it.' };
+  return { ok:true, custom:true, seq, name:'Custom Split', days, unserviceable:[] };
+}
+
+// One entry point for both schemas, so every caller stays schema-agnostic.
+const encodeAny = (prog, seq) => prog && prog.custom ? encodeCustom(prog, seq) : encodeProgram(prog, seq);
 
 // =====================================================
 // SS1 — PhysiquePlan code reader (continuity only, nothing load-bearing)
@@ -773,7 +902,7 @@ const Modal = ({children, onClose}) => (
 // =====================================================
 // SCREENS
 // =====================================================
-function HomeScreen({onContinue, onCustom, onReload}){
+function HomeScreen({onContinue, onCustom, onReload, onBuild}){
   return (
     <Card className="max-w-3xl">
       <div className="grid md:grid-cols-2 gap-10 items-center">
@@ -811,6 +940,7 @@ function HomeScreen({onContinue, onCustom, onReload}){
             <PrimaryButton onClick={onContinue}>Continue from PhysiquePlan <ArrowRight className="w-4 h-4" /></PrimaryButton>
             <SecondaryButton onClick={onCustom}>Build a custom program</SecondaryButton>
             <SecondaryButton onClick={onReload}>Reload a program</SecondaryButton>
+            <SecondaryButton onClick={onBuild}>Build a custom split</SecondaryButton>
           </div>
           <p className="text-xs text-stone-500 text-center mt-3">Takes about 3 minutes.</p>
         </div>
@@ -1095,10 +1225,8 @@ const ExerciseRow = ({row, onSwap, detailed}) => {
       </div>
     </div>
   );
-  const isAmrap = row.range === 'AMRAP';
-  const model = isAmrap ? 'AMRAP' : modelFor(row.slot.pattern, row.exId);
-  const rir = rirFor(row.slot.pattern, row.exId);
-  const sets = SETS[row.slot.pattern] || 3;
+  const { sets, range, rest, rir, model } = rowSpec(row);
+  const isAmrap = range === 'AMRAP';
   return (
     <div className="px-4 py-3.5">
       <div className="flex gap-3">
@@ -1123,7 +1251,7 @@ const ExerciseRow = ({row, onSwap, detailed}) => {
             </div>
           </div>
           {!detailed && (
-            <div className="mt-1.5 text-xs text-stone-500">{row.range} reps · rest {row.rest}</div>
+            <div className="mt-1.5 text-xs text-stone-500">{range} reps · rest {rest}</div>
           )}
         </div>
       </div>
@@ -1131,9 +1259,9 @@ const ExerciseRow = ({row, onSwap, detailed}) => {
       {detailed && (
         <div className="mt-3 pt-3 border-t border-stone-100 grid grid-cols-4 gap-3">
           <Metric label="Sets" value={sets} />
-          <Metric label="Reps" value={isAmrap ? 'AMRAP' : row.range} />
-          <Metric label="RIR" value={isAmrap ? '0' : rir} accent={!isAmrap && rir === RIR_CAUTION} />
-          <Metric label="Rest" value={row.rest} />
+          <Metric label="Reps" value={range} />
+          <Metric label="RIR" value={rir} accent={rir === RIR_CAUTION} />
+          <Metric label="Rest" value={rest} />
         </div>
       )}
     </div>
@@ -1239,6 +1367,21 @@ const SETS = {
   NECK_CURL:3, NECK_EXT:3,
 };
 
+// Every consumer of a row reads its numbers through here. A row built by the
+// resolver carries none of these fields and falls through to the tables, so
+// skeleton programs behave exactly as before. A row built in the split builder
+// carries them explicitly, which is what makes them editable.
+function rowSpec(row){
+  const amrap = row.range === 'AMRAP';
+  return {
+    sets:  row.sets  != null ? row.sets  : (SETS[row.slot.pattern] || 3),
+    range: row.range,
+    rest:  row.rest,
+    rir:   row.rir   != null ? row.rir   : (amrap ? '0' : rirFor(row.slot.pattern, row.exId)),
+    model: row.model != null ? row.model : (amrap ? 'AMRAP' : modelFor(row.slot.pattern, row.exId)),
+  };
+}
+
 // 1 = primary (full set), 0.5 = secondary (half set).
 // Forearms take a QUARTER set on every pull, curl, shrug and RDL. Grip work on
 // those lifts is isometric and near the end of its range, so it earns less than
@@ -1302,7 +1445,7 @@ function computeVolume(days){
     if (!row.exId) continue;
     const isOpt = !!row.slot.optional || /optional/i.test(d.name || '');
     const map = EXERCISE_MUSCLES[row.exId] || PATTERN_MUSCLES[row.slot.pattern] || {};
-    const sets = SETS[row.slot.pattern] || 3;
+    const sets = row.sets != null ? row.sets : (SETS[row.slot.pattern] || 3);
     for (const [m, w] of Object.entries(map)){
       total[m] = (total[m] || 0) + sets * w;
       if (isOpt) optional[m] = (optional[m] || 0) + sets * w;
@@ -1321,7 +1464,8 @@ function fillFor(v){
 const ORDER = Object.keys(MUSCLE_LABEL);
 const round1 = v => Math.round((v || 0) * 10) / 10;
 
-function VolumeTracker({ prog }){
+function VolumeTracker({ prog, compact = false, title = 'Weekly volume by muscle',
+                         subtitle = "How your week's sets land across the body." }){
   const [hover, setHover] = useState(null);
   const { total, optional } = useMemo(() => computeVolume(prog.days), [prog]);
   const rows = ORDER.map(k => ({ k, v: round1(total[k]), o: round1(optional[k]) }))
@@ -1350,10 +1494,8 @@ function VolumeTracker({ prog }){
   return (
     <div className="mt-6 border border-stone-200 rounded-xl overflow-hidden bg-white">
       <div className="px-4 py-3 border-b border-stone-200 bg-stone-50">
-        <div className="text-sm font-semibold text-stone-900">Weekly volume by muscle</div>
-        <div className="text-xs text-stone-500 mt-0.5">
-          How your week's sets land across the body.
-        </div>
+        <div className="text-sm font-semibold text-stone-900">{title}</div>
+        <div className="text-xs text-stone-500 mt-0.5">{subtitle}</div>
       </div>
 
       <div className="p-4">
@@ -1406,7 +1548,7 @@ function VolumeTracker({ prog }){
         })}
       </div>
 
-      <div className="px-4 pb-4 border-t border-stone-100 pt-3">
+      {!compact && <div className="px-4 pb-4 border-t border-stone-100 pt-3">
         <div className="text-xs font-semibold text-stone-700 mb-1.5">How the sets are counted</div>
         <p className="mt-2 text-xs text-stone-500 leading-relaxed">
           1 for primary, 0.5 for secondary and stabilisers:
@@ -1428,7 +1570,7 @@ function VolumeTracker({ prog }){
           A muscle under 3 sets a week stays grey. Colour deepens to 15 sets.
           Hatched bar segments come from optional workouts.
         </p>
-      </div>
+      </div>}
     </div>
   );
 }
@@ -1454,9 +1596,9 @@ function dayStats(day){
   const rows = day.rows.filter(r => r.exId);
   let sets = 0, minutes = 0;
   for (const r of rows){
-    const n = SETS[r.slot.pattern] || 3;
-    sets += n;
-    minutes += n * 0.75 + n * restMinutes(r.rest);
+    const s = rowSpec(r);
+    sets += s.sets;
+    minutes += s.sets * 0.75 + s.sets * restMinutes(s.rest);
   }
   return { exercises: rows.length, sets, minutes };
 }
@@ -1475,11 +1617,11 @@ function programStats(prog){
   for (const d of prog.days) for (const r of d.rows){
     if (!r.exId) continue;
     exerciseCount++;
-    if (r.range === 'AMRAP') models.AMRAP++;
+    const s = rowSpec(r);
+    if (s.model === 'AMRAP') models.AMRAP++;
     else {
-      const m = modelFor(r.slot.pattern, r.exId);
-      models[m] = (models[m] || 0) + 1;
-      if (rirFor(r.slot.pattern, r.exId) === RIR_CAUTION) rirCaution++;
+      models[s.model] = (models[s.model] || 0) + 1;
+      if (s.rir === RIR_CAUTION) rirCaution++;
     }
   }
 
@@ -1827,10 +1969,407 @@ function HowToRun({prog}){
 // current: it is regenerated from the program on every render, so a swap can
 // never leave a stale code on screen.
 // =====================================================
+// =====================================================
+// SPLIT BUILDER
+// The coach-facing side of the app. Movement patterns on the left, a weekly
+// exercise pool on the right, the split itself in columns underneath.
+//
+// The pool is a dump: an exercise you add lands there, and dragging it into a
+// workout takes it out of the pool. The volume tracker counts the pool and the
+// columns together, so the picture is complete before anything is arranged.
+//
+// Every field on a placed exercise is auto-filled from the same tables the
+// resolver uses, and every one of them can be overridden. Overrides survive
+// reordering, ride in the OPC1 code, and are marked so it is obvious which
+// numbers are the system's and which are yours.
+// =====================================================
+let UID = 0;
+const newUid = () => `x${++UID}`;
+
+const emptyBuilder = (n = 4) => ({
+  dayCount: n,
+  names: Array.from({length:n}, (_,i) => `Workout ${i+1}`),
+  days:  Array.from({length:n}, () => []),
+  pool:  [],
+});
+
+const omitKey = (o, k) => { const c = {...o}; delete c[k]; return c; };
+
+const DAY_OPTIONS = [1,2,3,4,5,6,7];
+const MODEL_OPTIONS = ['RPT','SS','AMRAP'];
+
+function PatternPicker({pattern, onPick, onClose}){
+  const ids = POOLS[pattern] || [];
+  return (
+    <Modal onClose={onClose}>
+      <div className="p-5 border-b border-stone-200 flex items-start justify-between gap-4">
+        <div>
+          <Eyebrow>{PATTERN_LABEL[pattern]}</Eyebrow>
+          <h3 className="mt-1.5 text-lg font-bold text-stone-900">Add an exercise</h3>
+          <p className="text-xs text-stone-500 mt-1">
+            Every exercise in this pattern, in preference order. Picking one drops it into the weekly pool.
+          </p>
+        </div>
+        <button onClick={onClose} className="flex-shrink-0 w-8 h-8 rounded-full hover:bg-stone-100 flex items-center justify-center transition-colors">
+          <X className="w-4 h-4 text-stone-500" />
+        </button>
+      </div>
+      <div className="p-5 overflow-y-auto space-y-2">
+        {ids.map(id => (
+          <button key={id} onClick={() => onPick(id)}
+            className="w-full text-left p-3 rounded-xl border border-stone-200 hover:border-orange-500 hover:bg-orange-50 transition-colors flex gap-3">
+            <ExerciseImage exId={id} className="w-28 sm:w-32 flex-shrink-0" />
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium text-stone-900">{EXERCISES[id][0]}</div>
+              <div className="text-xs text-stone-500 mt-1 leading-relaxed">
+                {EXERCISES[id][1].length ? EXERCISES[id][1].join(', ') : 'No equipment needed'}
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+    </Modal>
+  );
+}
+
+// One editable field. Orange means the value is yours rather than the table's,
+// and the dot clears it back to the default.
+const BuilderField = ({label, value, edited, onChange, onClear, numeric, options}) => {
+  const cls = `mt-1 w-full px-2 py-1 rounded-lg border text-xs focus:outline-none focus:border-orange-500 ${
+    edited ? 'border-orange-300 bg-orange-50 text-stone-900 font-medium' : 'border-stone-200 bg-white text-stone-700'}`;
+  return (
+    <div className="min-w-0">
+      <div className="flex items-center justify-between gap-1">
+        <span className="text-[10px] uppercase tracking-wider text-stone-400 leading-none">{label}</span>
+        {edited && (
+          <button onClick={e => { e.stopPropagation(); onClear(); }} title="Back to the default"
+            className="text-[10px] text-orange-600 hover:text-orange-700 leading-none">reset</button>
+        )}
+      </div>
+      {options ? (
+        <select value={value} onClick={e => e.stopPropagation()} onChange={e => onChange(e.target.value)} className={cls}>
+          {options.map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+      ) : (
+        <input value={value} inputMode={numeric ? 'numeric' : 'text'}
+          onClick={e => e.stopPropagation()} onChange={e => onChange(e.target.value)} className={cls} />
+      )}
+    </div>
+  );
+};
+
+function BuilderCard({row, held, onHold, onDragStart, onDragEnd, onDropOn, onEdit, onClear, onUnplace}){
+  const ov = row.ov || {};
+  const edits = Object.keys(ov).length;
+  return (
+    <div
+      onDragOver={e => e.preventDefault()}
+      onDrop={e => { e.preventDefault(); e.stopPropagation(); onDropOn(); }}
+      onClick={e => { e.stopPropagation(); onHold(); }}
+      className={`rounded-xl border bg-white transition-colors ${
+        held ? 'border-orange-500 ring-2 ring-orange-100' : 'border-stone-200 hover:border-stone-300'}`}>
+      <div draggable onDragStart={onDragStart} onDragEnd={onDragEnd}
+        className="flex items-start gap-2 px-3 py-2.5 cursor-grab active:cursor-grabbing">
+        <GripVertical className="w-4 h-4 text-stone-300 flex-shrink-0 mt-0.5" />
+        <div className="min-w-0 flex-1">
+          <div className="text-xs font-medium text-stone-900 leading-snug">{EXERCISES[row.exId][0]}</div>
+          <div className="text-[11px] text-stone-500 mt-0.5">{PATTERN_LABEL[row.slot.pattern]}</div>
+        </div>
+        <button onClick={e => { e.stopPropagation(); onUnplace(); }} title="Send back to the pool"
+          className="flex-shrink-0 w-6 h-6 rounded-full hover:bg-stone-100 flex items-center justify-center">
+          <X className="w-3.5 h-3.5 text-stone-400" />
+        </button>
+      </div>
+
+      <div className="px-3 pb-3 grid grid-cols-2 gap-2">
+        <BuilderField label="Sets" value={row.sets} edited={ov.sets != null} numeric
+          onChange={v => onEdit('sets', Math.max(1, Math.min(20, parseInt(v,10) || 1)))}
+          onClear={() => onClear('sets')} />
+        <BuilderField label="Reps" value={row.range} edited={ov.range != null}
+          onChange={v => onEdit('range', v)} onClear={() => onClear('range')} />
+        <BuilderField label="Rest" value={row.rest} edited={ov.rest != null}
+          onChange={v => onEdit('rest', v)} onClear={() => onClear('rest')} />
+        <BuilderField label="RIR" value={row.rir} edited={ov.rir != null}
+          onChange={v => onEdit('rir', v)} onClear={() => onClear('rir')} />
+        <div className="col-span-2">
+          <BuilderField label="Progression" value={row.model} edited={ov.model != null} options={MODEL_OPTIONS}
+            onChange={v => onEdit('model', v)} onClear={() => onClear('model')} />
+        </div>
+      </div>
+
+      {edits > 0 && (
+        <div className="px-3 pb-2.5 -mt-1">
+          <button onClick={e => { e.stopPropagation(); onClear(null); }}
+            className="text-[11px] text-stone-500 hover:text-stone-900 flex items-center gap-1">
+            <RotateCcw className="w-3 h-3" /> Reset all fields
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SplitBuilderScreen({state, setState, onBack, onFinish}){
+  const b = state;
+  const [picker, setPicker] = useState(null);
+  const [held, setHeld] = useState(null);
+  const [dragUid, setDragUid] = useState(null);
+
+  const update = patch => setState({...b, ...patch});
+
+  const setDayCount = n => {
+    if (n === b.dayCount) return;
+    if (n > b.dayCount){
+      const add = n - b.dayCount;
+      update({
+        dayCount: n,
+        names: [...b.names, ...Array.from({length:add}, (_,i) => `Workout ${b.dayCount + i + 1}`)],
+        days:  [...b.days,  ...Array.from({length:add}, () => [])],
+      });
+    } else {
+      // Anything in a workout that no longer exists goes back to the pool
+      // rather than being thrown away.
+      const dropped = b.days.slice(n).flat();
+      update({ dayCount:n, names:b.names.slice(0,n), days:b.days.slice(0,n), pool:[...b.pool, ...dropped] });
+    }
+  };
+
+  const rename = (i, v) => update({ names: b.names.map((x,j) => j === i ? v : x) });
+
+  const addExercise = (pattern, exId) =>
+    update({ pool: [...b.pool, { uid:newUid(), pattern, exId, ov:{} }] });
+
+  const findItem = uid => {
+    const inPool = b.pool.find(i => i.uid === uid);
+    if (inPool) return inPool;
+    for (const d of b.days){ const hit = d.find(i => i.uid === uid); if (hit) return hit; }
+    return null;
+  };
+
+  const without = uid => ({
+    pool: b.pool.filter(i => i.uid !== uid),
+    days: b.days.map(d => d.filter(i => i.uid !== uid)),
+  });
+
+  // dayIndex null means the pool. beforeUid inserts ahead of that card, which
+  // is how ordering inside a workout gets set.
+  const moveTo = (uid, dayIndex, beforeUid = null) => {
+    const item = findItem(uid);
+    setHeld(null); setDragUid(null);
+    if (!item) return;
+    const base = without(uid);
+    if (dayIndex == null){ update({...base, pool:[...base.pool, item]}); return; }
+    update({...base, days: base.days.map((d, i) => {
+      if (i !== dayIndex) return d;
+      const at = beforeUid ? d.findIndex(x => x.uid === beforeUid) : -1;
+      return at < 0 ? [...d, item] : [...d.slice(0, at), item, ...d.slice(at)];
+    })});
+  };
+
+  const deleteItem = uid => { setHeld(null); update(without(uid)); };
+
+  const editField = (uid, key, value) => {
+    const apply = list => list.map(i => i.uid !== uid ? i : { ...i, ov: {...(i.ov||{}), [key]: value} });
+    update({ pool: apply(b.pool), days: b.days.map(apply) });
+  };
+  const clearField = (uid, key) => {
+    const apply = list => list.map(i => i.uid !== uid ? i
+      : { ...i, ov: key == null ? {} : omitKey(i.ov || {}, key) });
+    update({ pool: apply(b.pool), days: b.days.map(apply) });
+  };
+
+  const tap = (uid, dayIndex) => {
+    if (held && held !== uid) return moveTo(held, dayIndex, dayIndex == null ? null : uid);
+    setHeld(held === uid ? null : uid);
+  };
+
+  const dayRows = useMemo(() => b.days.map(resolveItems), [b.days]);
+  const poolRows = useMemo(() => resolveItems(b.pool), [b.pool]);
+
+  // The tracker counts the pool alongside the workouts, so it is honest while
+  // the split is still being arranged.
+  const trackerProg = {
+    days: [
+      ...dayRows.map((rows, i) => ({ name: b.names[i] || '', rows })),
+      { name:'Unassigned', rows: poolRows },
+    ],
+  };
+
+  const totalExercises = poolRows.length + dayRows.reduce((n, r) => n + r.length, 0);
+  const totalSets = [...poolRows, ...dayRows.flat()].reduce((n, r) => n + r.sets, 0);
+  const placed = dayRows.reduce((n, r) => n + r.length, 0);
+
+  const patternCount = p =>
+    b.pool.filter(i => i.pattern === p).length + b.days.reduce((n,d) => n + d.filter(i => i.pattern === p).length, 0);
+
+  const dropZone = dayIndex => ({
+    onDragOver: e => e.preventDefault(),
+    onDrop: e => { e.preventDefault(); if (dragUid) moveTo(dragUid, dayIndex); },
+    onClick: () => { if (held) moveTo(held, dayIndex); },
+  });
+
+  return (
+    <>
+      <Card className="max-w-[1400px]">
+        <BackButton onClick={onBack} />
+        <Eyebrow>Split builder</Eyebrow>
+        <h2 className="mt-3 text-2xl font-bold text-stone-900">Build a custom split.</h2>
+        <p className="mt-2 text-stone-600 text-sm leading-relaxed max-w-2xl">
+          Pick a movement pattern to choose an exercise. It lands in the weekly pool, and the volume
+          tracker counts it straight away. Drag from the pool into a workout to build the split. On a
+          touchscreen, tap an exercise to pick it up and tap where it goes.
+        </p>
+
+        {/* ---- patterns and pool ------------------------------------- */}
+        <div className="mt-8 grid lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] gap-8">
+          {/* left: how many workouts, then the movement patterns */}
+          <div>
+            <div className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Workouts a week</div>
+            <div className="mt-2 grid grid-cols-7 gap-1.5">
+              {DAY_OPTIONS.map(n => (
+                <button key={n} onClick={() => setDayCount(n)}
+                  className={`py-2 rounded-lg text-sm font-medium border transition-colors ${
+                    n === b.dayCount ? 'bg-stone-900 text-white border-stone-900'
+                                     : 'bg-white text-stone-700 border-stone-200 hover:border-stone-400'}`}>
+                  {n}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-7 text-xs font-semibold text-stone-400 uppercase tracking-wider">Movements</div>
+            <div className="mt-2 border border-stone-200 rounded-xl divide-y divide-stone-100 overflow-hidden bg-white">
+              {PATTERN_ORDER.map(p => {
+                const c = patternCount(p);
+                return (
+                  <button key={p} onClick={() => setPicker(p)}
+                    className="w-full px-3.5 py-2.5 flex items-center gap-2 text-left hover:bg-orange-50 transition-colors">
+                    <Plus className="w-3.5 h-3.5 text-stone-300 flex-shrink-0" />
+                    <span className="flex-1 text-sm text-stone-800">{PATTERN_LABEL[p]}</span>
+                    {c > 0 && (
+                      <span className="text-[11px] tabular-nums text-stone-500 bg-stone-100 rounded-full px-2 py-0.5">{c}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* right: the pool, then the tracker it feeds */}
+          <div>
+            <div className="flex items-baseline justify-between gap-4">
+              <div className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Weekly exercise pool</div>
+              <div className="text-xs text-stone-500 tabular-nums">
+                {totalExercises} exercises · {totalSets} sets · {placed} placed
+              </div>
+            </div>
+
+            <div {...dropZone(null)}
+              className="mt-2 min-h-[120px] rounded-xl border border-dashed border-stone-300 bg-stone-50 p-3">
+              {poolRows.length === 0 ? (
+                <div className="h-[96px] flex items-center justify-center text-center px-6">
+                  <span className="text-xs text-stone-400 leading-relaxed">
+                    Empty. Pick a movement on the left to add an exercise, or drop one back here to
+                    take it out of a workout.
+                  </span>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {poolRows.map(r => (
+                    <div key={r.uid} draggable
+                      onDragStart={() => setDragUid(r.uid)} onDragEnd={() => setDragUid(null)}
+                      onClick={e => { e.stopPropagation(); tap(r.uid, null); }}
+                      className={`flex items-center gap-2 pl-2 pr-1 py-1.5 rounded-lg border bg-white cursor-grab active:cursor-grabbing transition-colors ${
+                        held === r.uid ? 'border-orange-500 ring-2 ring-orange-100' : 'border-stone-200 hover:border-stone-300'}`}>
+                      <GripVertical className="w-3.5 h-3.5 text-stone-300 flex-shrink-0" />
+                      <span className="text-xs text-stone-900">{EXERCISES[r.exId][0]}</span>
+                      <span className="text-[11px] text-stone-400">{PATTERN_LABEL[r.slot.pattern]}</span>
+                      <button onClick={e => { e.stopPropagation(); deleteItem(r.uid); }} title="Remove from the pool"
+                        className="w-5 h-5 rounded-full hover:bg-stone-100 flex items-center justify-center flex-shrink-0">
+                        <X className="w-3 h-3 text-stone-400" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <VolumeTracker prog={trackerProg} compact
+              title="Volume check"
+              subtitle="Every exercise you have added, placed or not." />
+          </div>
+        </div>
+
+        {/* ---- the split itself -------------------------------------- */}
+        <div className="mt-10 pt-8 border-t border-stone-200">
+          <h3 className="text-xl font-bold text-stone-900">The split</h3>
+          <p className="mt-2 text-sm text-stone-600 leading-relaxed max-w-2xl">
+            Name each workout and drag exercises in from the pool. Order inside a column is the order
+            they are run, and it changes the rep ranges, so the second press of a session picks up its
+            two extra reps on its own. Any field you type into stays put after that.
+          </p>
+
+          <div className="mt-6 flex gap-4 overflow-x-auto pb-2">
+            {b.days.map((_, di) => (
+              <div key={di} className="w-[300px] flex-shrink-0">
+                <input value={b.names[di]} onChange={e => rename(di, e.target.value)}
+                  placeholder={`Workout ${di+1}`}
+                  className="w-full px-3 py-2 rounded-lg border border-stone-200 bg-white text-sm font-semibold text-stone-900 focus:outline-none focus:border-orange-500" />
+                <div {...dropZone(di)}
+                  className="mt-2 min-h-[200px] rounded-xl border border-dashed border-stone-300 bg-stone-50 p-2.5 space-y-2.5">
+                  {dayRows[di].length === 0 && (
+                    <div className="h-[176px] flex items-center justify-center px-4">
+                      <span className="text-xs text-stone-400 text-center leading-relaxed">
+                        Drop exercises here.
+                      </span>
+                    </div>
+                  )}
+                  {dayRows[di].map(r => (
+                    <BuilderCard key={r.uid} row={r} held={held === r.uid}
+                      onHold={() => tap(r.uid, di)}
+                      onDragStart={() => setDragUid(r.uid)}
+                      onDragEnd={() => setDragUid(null)}
+                      onDropOn={() => { if (dragUid) moveTo(dragUid, di, r.uid); }}
+                      onEdit={(k,v) => editField(r.uid, k, v)}
+                      onClear={k => clearField(r.uid, k)}
+                      onUnplace={() => moveTo(r.uid, null)} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ---- done -------------------------------------------------- */}
+        <div className="mt-10 pt-8 border-t border-stone-200">
+          <PrimaryButton onClick={onFinish} disabled={placed === 0} className="max-w-md mx-auto">
+            Finish split <ArrowRight className="w-4 h-4" />
+          </PrimaryButton>
+          <p className="mt-3 text-xs text-stone-500 text-center">
+            {placed === 0
+              ? 'Put at least one exercise into a workout first.'
+              : poolRows.length > 0
+                ? `${poolRows.length} exercise${poolRows.length === 1 ? '' : 's'} still in the pool. They will not appear in the program.`
+                : 'Everything in the pool is placed.'}
+          </p>
+          <button onClick={() => { setHeld(null); setState(emptyBuilder(b.dayCount)); }}
+            className="mt-6 w-full text-sm text-stone-500 hover:text-stone-900 transition-colors">
+            Clear the builder
+          </button>
+        </div>
+      </Card>
+
+      {picker && (
+        <PatternPicker pattern={picker} onClose={() => setPicker(null)}
+          onPick={id => { addExercise(picker, id); setPicker(null); }} />
+      )}
+    </>
+  );
+}
+
 function ProgramScreen({prog, seq, owned, onSwapAt, onBack, onIssue, onRestart}){
   const [swap, setSwap] = useState(null);
   const [copied, setCopied] = useState(false);
-  const code = encodeProgram(prog, seq);
+  const code = encodeAny(prog, seq);
   const copy = () => {
     navigator.clipboard?.writeText(code);
     setCopied(true);
@@ -1950,7 +2489,8 @@ function LoadCodeScreen({onBack, onLoaded}){
       <Eyebrow>Reload a program</Eyebrow>
       <h2 className="mt-3 text-2xl font-bold text-stone-900">Paste an OptiWorkout code.</h2>
       <p className="mt-2 text-stone-600 text-sm leading-relaxed">
-        It starts with OP1. Loading a code shows the full program and lets you swap any exercise.
+        It starts with OP1, or OPC1 if it came out of the split builder. Loading a code shows the
+        full program and lets you swap any exercise.
       </p>
       <input value={code} onChange={e => { setCode(e.target.value); setError(''); }}
         onKeyDown={e => e.key === 'Enter' && submit()} placeholder="OP1-..."
@@ -1974,6 +2514,10 @@ export default function App(){
   const [owned, setOwned] = useState(new Set());
   const [prog, setProg] = useState(null);
   const [seq, setSeq] = useState(1);
+  const [builder, setBuilder] = useState(emptyBuilder);
+  // Where Back from the program page goes. A custom split returns to the
+  // builder with its state intact; a resolved one returns to the equipment step.
+  const [returnTo, setReturnTo] = useState('equipment');
   // True once the client has actually copied a code. Any swap after that point
   // supersedes what they sent, so the sequence number has to move.
   const [issued, setIssued] = useState(false);
@@ -2001,8 +2545,12 @@ export default function App(){
       ...d, rows: d.rows.map((r, j) => j !== ri ? r : { ...r, exId:newExId })
     });
     const counters = {};
-    days2[di] = { ...days2[di], rows: days2[di].rows.map(r =>
-      r.exId ? { ...r, range: computeRange(r.slot.pattern, r.exId, counters), rest: restFor(r.slot.pattern, r.exId) } : r) };
+    days2[di] = { ...days2[di], rows: days2[di].rows.map(r => {
+      if (!r.exId) return r;
+      // Defaults recompute for the whole day, then anything edited by hand in
+      // the builder is laid back over the top.
+      return { ...r, ...autoSpec(r.slot.pattern, r.exId, counters), ...(r.ov || {}) };
+    })};
     setProg({ ...prog, days: days2 });
     // Only the first change after a copy supersedes what was sent. Further
     // swaps before the next copy are part of the same revision, so the
@@ -2013,12 +2561,14 @@ export default function App(){
   const restart = () => {
     setScreen('home'); setSs1(null); setDays(null); setSkelId(null);
     setOwned(new Set()); setProg(null); setSeq(1); setIssued(false);
+    setBuilder(emptyBuilder()); setReturnTo('equipment');
   };
 
   let body;
   switch (screen){
     case 'home':
-      body = <HomeScreen onContinue={() => setScreen('paste')} onCustom={() => setScreen('days')} onReload={() => setScreen('load')} />;
+      body = <HomeScreen onContinue={() => setScreen('paste')} onCustom={() => setScreen('days')}
+        onReload={() => setScreen('load')} onBuild={() => setScreen('builder')} />;
       break;
     case 'paste':
       body = <PasteCodeScreen onBack={() => setScreen('home')} onDecoded={r => { setSs1(r); setScreen('ack'); }} />;
@@ -2042,21 +2592,32 @@ export default function App(){
     case 'equipment':
       body = <EquipmentScreen step={2} total={totalSteps} owned={owned} setOwned={setOwned}
         onBack={() => setScreen(SKELETONS_BY_DAYS(days).length > 1 ? 'split' : 'days')}
-        onContinue={() => { setProg(buildProgram(skelId, owned, new Set())); setScreen('building'); }} />;
+        onContinue={() => { setProg(buildProgram(skelId, owned, new Set())); setReturnTo('equipment'); setScreen('building'); }} />;
       break;
     case 'building':
       body = <LoadingScreen />;
       break;
+    case 'builder':
+      body = <SplitBuilderScreen state={builder} setState={setBuilder}
+        onBack={() => setScreen('home')}
+        onFinish={() => {
+          setProg(buildCustomProgram(builder));
+          setOwned(PRESET_FULL); setSeq(1); setIssued(false);
+          setReturnTo('builder'); setScreen('program');
+        }} />;
+      break;
     case 'program':
       body = <ProgramScreen prog={prog} seq={seq} owned={owned} onSwapAt={swapAt}
-        onBack={() => setScreen('equipment')} onIssue={() => setIssued(true)} onRestart={restart} />;
+        onBack={() => setScreen(returnTo)} onIssue={() => setIssued(true)} onRestart={restart} />;
       break;
     case 'load':
       body = <LoadCodeScreen onBack={() => setScreen('home')}
-        onLoaded={r => { setProg(r); setSkelId(r.skelId); setSeq(r.seq); setOwned(PRESET_FULL); setIssued(true); setScreen('program'); }} />;
+        onLoaded={r => { setProg(r); setSkelId(r.skelId); setSeq(r.seq); setOwned(PRESET_FULL); setIssued(true);
+          setReturnTo('home'); setScreen('program'); }} />;
       break;
     default:
-      body = <HomeScreen onContinue={() => setScreen('paste')} onCustom={() => setScreen('days')} onReload={() => setScreen('load')} />;
+      body = <HomeScreen onContinue={() => setScreen('paste')} onCustom={() => setScreen('days')}
+        onReload={() => setScreen('load')} onBuild={() => setScreen('builder')} />;
   }
 
   // centre the short screens; let the long program lists start at the top
