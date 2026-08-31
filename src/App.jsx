@@ -1240,7 +1240,9 @@ const ExerciseRow = ({row, onSwap, detailed}) => {
               </div>
               <div className="text-xs text-stone-500 mt-1">{PATTERN_LABEL[row.slot.pattern]}</div>
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
+            {/* One column, not a row: side by side these two crowd the exercise
+                name off the line on a narrow screen. */}
+            <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
               {detailed && <ModelBadge model={model} />}
               {onSwap && (
                 <button onClick={onSwap}
