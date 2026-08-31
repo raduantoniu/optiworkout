@@ -1466,7 +1466,8 @@ function fillFor(v){
 const ORDER = Object.keys(MUSCLE_LABEL);
 const round1 = v => Math.round((v || 0) * 10) / 10;
 
-function VolumeTracker({ prog, compact = false, title = 'Weekly volume by muscle',
+function VolumeTracker({ prog, compact = false, wrapClass = 'mt-6',
+                         title = 'Weekly volume by muscle',
                          subtitle = "How your week's sets land across the body." }){
   const [hover, setHover] = useState(null);
   const { total, optional } = useMemo(() => computeVolume(prog.days), [prog]);
@@ -1494,7 +1495,7 @@ function VolumeTracker({ prog, compact = false, title = 'Weekly volume by muscle
   };
 
   return (
-    <div className="mt-6 border border-stone-200 rounded-xl overflow-hidden bg-white">
+    <div className={`${wrapClass} border border-stone-200 rounded-xl overflow-hidden bg-white`}>
       <div className="px-4 py-3 border-b border-stone-200 bg-stone-50">
         <div className="text-sm font-semibold text-stone-900">{title}</div>
         <div className="text-xs text-stone-500 mt-0.5">{subtitle}</div>
@@ -2256,9 +2257,15 @@ function SplitBuilderScreen({state, setState, onBack, onFinish}){
             </div>
           </div>
 
-          {/* right: the pool, then the tracker it feeds */}
+          {/* right: the tracker, then the pool it reads from. The pool sits at the
+              bottom because the next thing you do with it is drag into the split
+              directly underneath. */}
           <div>
-            <div className="flex items-baseline justify-between gap-4">
+            <VolumeTracker prog={trackerProg} compact wrapClass=""
+              title="Volume check"
+              subtitle="Every exercise you have added, placed or not." />
+
+            <div className="mt-6 flex items-baseline justify-between gap-4">
               <div className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Weekly exercise pool</div>
               <div className="text-xs text-stone-500 tabular-nums">
                 {totalExercises} exercises · {totalSets} sets · {placed} placed
@@ -2294,10 +2301,6 @@ function SplitBuilderScreen({state, setState, onBack, onFinish}){
                 </div>
               )}
             </div>
-
-            <VolumeTracker prog={trackerProg} compact
-              title="Volume check"
-              subtitle="Every exercise you have added, placed or not." />
           </div>
         </div>
 
