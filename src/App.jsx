@@ -1430,6 +1430,9 @@ const EXERCISE_MUSCLES = {
   PULLOVER_DB:  { LATS:1, CHEST:0.5, TRICEPS:0.5, FOREARMS:0.25 },
   SHRUG_KELSO:  { TRAPS:1, UPPER_BACK:0.5, FOREARMS:0.25 },
   CUBAN_PRESS:  { SIDE_DELT:1, REAR_DELT:0.5, FRONT_DELT:0.5 },
+  // Lying at 30 degrees puts the arm path between frontal-plane abduction and
+  // horizontal abduction, so both heads take full credit.
+  REAR_DELT_DB_30: { SIDE_DELT:1, REAR_DELT:1 },
   FACE_PULL_CABLE: { REAR_DELT:1, UPPER_BACK:0.5, TRAPS:0.5 },
   SKULLCRUSHER_BB: { TRICEPS:1, FOREARMS:0.25 },
   LEG_RAISE_LYING: { ABS:1, OBLIQUES:0.5, ADDUCTORS:0.5 },
