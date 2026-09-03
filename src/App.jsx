@@ -44,6 +44,8 @@ const EQ = {
   SHRUG_M:'shrug machine', HIP_THRUST_M:'hip thrust machine', HIP_THRUST_STATION:'hip thrust station',
   ROMAN_CHAIR:'roman chair', CRUNCH_M:'abs crunch machine', CAPTAINS_CHAIR:"captain's chair",
   HEAD_HARNESS:'head harness', PLATE:'barbell plates',
+  KICKBACK_M:'glute kickback machine', HIP_ABDUCTION_M:'hip abduction machine',
+  HIP_ADDUCTION_M:'hip adduction machine', ASSISTED_PULLUP_M:'assisted pull-up machine',
 };
 
 // =====================================================
@@ -76,6 +78,12 @@ const EXERCISES = {
   HIP_THRUST_SMITH:['Hip Thrust (Smith Machine)',[EQ.SMITH,EQ.FLAT_BENCH]],
   HIP_THRUST_BENCH:['Barbell Hip Thrust (Bench Propped, Manual Setup)',[EQ.BARBELL,EQ.FLAT_BENCH]],
   HIP_THRUST_DB_1L:['Single-Leg Hip Thrust (Dumbbell)',[EQ.DUMBBELLS,EQ.FLAT_BENCH],{db:true,sa:true}],
+  // GLUTE_ISO
+  KICKBACK_MACH:['Glute Maximus Kickback (Machine)',[EQ.KICKBACK_M]],
+  KICKBACK_CABLE:['Glute Maximus Kickback (Cable)',[EQ.CABLE]],
+  KICKBACK_MED_CABLE:['Glute Medius Kickback (Cable)',[EQ.CABLE]],
+  HIP_ABDUCTION:['Hip Abduction (Machine)',[EQ.HIP_ABDUCTION_M]],
+  HIP_ADDUCTION:['Hip Adduction (Machine)',[EQ.HIP_ADDUCTION_M]],
   // LEG_EXT
   LEG_EXT:['Leg Extension',[EQ.LEG_EXT_M]],
   REVERSE_NORDIC:['Band-Assisted Reverse Nordic Curl',[EQ.BANDS],{lastResort:true}],
@@ -146,6 +154,8 @@ const EXERCISES = {
   PULLDOWN_MACH_STACK:['Lat Pulldown (Stack-Loaded)',[EQ.PULLDOWN_M]],
   PULLDOWN_MACH_1A:['Single-Arm Lat Pulldown (Machine)',[EQ.PULLDOWN_M],{sa:true}],
   PULLUP_BAND:['Band-Assisted Pull-up',[EQ.PULLUP_BAR]],
+  PULLUP_ASSISTED:['Assisted Pull-up (Machine)',[EQ.ASSISTED_PULLUP_M]],
+  PULLUP_BW:['Bodyweight Pull-up',[EQ.PULLUP_BAR],{amrap:true}],
   PULLOVER_DB:['Dumbbell Pullover',[EQ.DUMBBELLS,EQ.FLAT_BENCH],{db:true}],
   // TRAPS
   SHRUG_MACH:['Shrug (Machine)',[EQ.SHRUG_M]],
@@ -202,6 +212,7 @@ const POOLS = {
   SQUAT:['HACK_SQUAT','PENDULUM_SQUAT','LEG_PRESS','SQUAT_SMITH','SQUAT_BACK','SQUAT_FRONT','SPLIT_SQUAT_BULG'],
   HINGE:['RDL_LEVER','RDL_TRAP','RDL_LANDMINE','RDL_SMITH','RDL_BB','BACK_EXT_WTD','RDL_CABLE','RDL_DB'],
   GLUTE:['HIP_THRUST_BB','HIP_THRUST_MACH','HIP_THRUST_SMITH','HIP_THRUST_BENCH','HIP_THRUST_DB_1L'],
+  GLUTE_ISO:['KICKBACK_CABLE','KICKBACK_MED_CABLE','KICKBACK_MACH','HIP_ABDUCTION','HIP_ADDUCTION'],
   LEG_EXT:['LEG_EXT','SISSY_SQUAT','REVERSE_NORDIC'],
   LEG_CURL:['LEG_CURL_SEATED','LEG_CURL_LYING','LEG_CURL_KNEELING','NORDIC_BAND'],
   CALF:['CALF_STRAIGHT_M','CALF_STANDING_MACH','CALF_STRAIGHT_SM','CALF_STANDING_CABLE','CALF_STRAIGHT_DB','CALF_SEATED','CALF_SL_BW'],
@@ -210,7 +221,7 @@ const POOLS = {
   CHEST_ISO:['DB_FLY_PRESS','DB_FLY_PRESS_INC','PEC_DECK','CHEST_FLY_MACH','CHEST_FLY_MACH_STACK','CHEST_FLY_CABLE','CHEST_FLY_CABLE_STAND'],
   VERT_PUSH:['SHLDR_PRESS_DB','VIKING_PRESS','OHP_BB','SHLDR_PRESS_MACH','SHLDR_PRESS_MACH_STACK','SHLDR_PRESS_SMITH','SHLDR_PRESS_DB_1A'],
   HORIZ_PULL:['ROW_TBAR_CS','ROW_CS_MACH','ROW_CS_MACH_STACK','ROW_SEAL','ROW_CABLE_SEATED','ROW_CABLE_CS_1A','ROW_CABLE_CS','ROW_PENDLAY','ROW_DB_CS','ROW_DB_1A','ROW_INVERTED'],
-  VERT_PULL:['CHINUP_W','PULLUP_NEUTRAL_W','PULLUP_W','PULLDOWN_CABLE','PULLDOWN_CABLE_1A','PULLDOWN_MACH','PULLDOWN_MACH_STACK','PULLDOWN_MACH_1A','PULLUP_BAND','PULLOVER_DB'],
+  VERT_PULL:['CHINUP_W','PULLUP_NEUTRAL_W','PULLUP_W','PULLUP_BW','PULLDOWN_CABLE','PULLDOWN_CABLE_1A','PULLDOWN_MACH','PULLDOWN_MACH_STACK','PULLDOWN_MACH_1A','PULLUP_ASSISTED','PULLUP_BAND','PULLOVER_DB'],
   TRAPS:['SHRUG_MACH','SHRUG_SMITH','SHRUG_TRAP','SHRUG_BB','SHRUG_DB','SHRUG_KELSO'],
   SIDE_DELT:['LAT_RAISE_MACH','CUBAN_PRESS','LAT_RAISE_DB','LAT_RAISE_CBL_BTB','LAT_RAISE_CABLE'],
   REAR_DELT:['REAR_DELT_MACH','REAR_DELT_CBL_1A','FACE_PULL_CABLE','REAR_DELT_DB_30'],
@@ -265,7 +276,7 @@ const PATTERN_LABEL = {
   HORIZ_PULL:'Horizontal pull', VERT_PULL:'Vertical pull', TRAPS:'Traps',
   SIDE_DELT:'Side delt', REAR_DELT:'Rear delt', TRI_OH:'Overhead triceps',
   TRI_PUSHDOWN:'Triceps pushdown', BICEPS:'Biceps', ABS:'Abs',
-  NECK_CURL:'Neck flexion', NECK_EXT:'Neck extension',
+  NECK_CURL:'Neck flexion', NECK_EXT:'Neck extension', GLUTE_ISO:'Glute isolation',
 };
 
 // =====================================================
@@ -330,7 +341,7 @@ const BASE = {
   SQUAT:[6,8], HINGE:[8,10], LEG_CURL:[8,12], LEG_EXT:[8,12], INCLINE_PRESS:[6,8],
   FLAT_PRESS:[6,8], CHEST_ISO:[10,12], VERT_PUSH:[6,8], HORIZ_PULL:[6,8], VERT_PULL:[6,8],
   SIDE_DELT:[10,12], REAR_DELT:[10,12], TRI_OH:[10,12], TRI_PUSHDOWN:[10,12], BICEPS:[8,12],
-  CALF:[15,20], ABS:[10,12], NECK_CURL:[15,20], NECK_EXT:[15,20], GLUTE:[8,12], TRAPS:[10,15],
+  CALF:[15,20], ABS:[10,12], NECK_CURL:[15,20], NECK_EXT:[15,20], GLUTE:[8,12], GLUTE_ISO:[8,12], TRAPS:[10,15],
 };
 const GROUP = {
   INCLINE_PRESS:'PUSH', FLAT_PRESS:'PUSH', VERT_PUSH:'PUSH',
@@ -364,7 +375,7 @@ const REST = {
   INCLINE_PRESS:'3 min', VERT_PUSH:'2-3 min', HORIZ_PULL:'2-3 min', VERT_PULL:'2-3 min',
   LEG_EXT:'2 min', LEG_CURL:'2 min', CALF:'1 min', CHEST_ISO:'2 min', TRAPS:'2 min',
   SIDE_DELT:'1 min', REAR_DELT:'1 min', TRI_OH:'1-2 min', TRI_PUSHDOWN:'1-2 min',
-  BICEPS:'1-2 min', ABS:'1-2 min', NECK_CURL:'1 min', NECK_EXT:'1 min',
+  BICEPS:'1-2 min', ABS:'1-2 min', NECK_CURL:'1 min', NECK_EXT:'1 min', GLUTE_ISO:'1-2 min',
 };
 
 // Free-weight versions of a pattern cost more to recover from than the machine
@@ -395,7 +406,7 @@ const PROGRESSION = {
   VERT_PUSH:'RPT', HORIZ_PULL:'RPT', VERT_PULL:'RPT',
   LEG_EXT:'SS', LEG_CURL:'SS', CALF:'SS', CHEST_ISO:'SS', TRAPS:'SS',
   SIDE_DELT:'SS', REAR_DELT:'SS', TRI_OH:'SS', TRI_PUSHDOWN:'SS', BICEPS:'SS',
-  ABS:'SS', NECK_CURL:'SS', NECK_EXT:'SS',
+  ABS:'SS', NECK_CURL:'SS', NECK_EXT:'SS', GLUTE_ISO:'SS',
 };
 // =====================================================
 // EFFORT TARGET (RIR)
@@ -723,6 +734,8 @@ const TOKEN_ORDER = [
   'SHRUG_MACH','SHRUG_SMITH','SHRUG_TRAP','SKULLCRUSHER_BB','SPLIT_SQUAT_BULG','SQUAT_BACK',
   'SQUAT_FRONT','SQUAT_SMITH','TRI_OH_CABLE','TRI_OH_CABLE_1A','TRI_OH_DB','TRI_OH_DB_INC',
   'TRI_PUSHDOWN','TRI_PUSHDOWN_1A','VIKING_PRESS',
+  'KICKBACK_CABLE','KICKBACK_MACH','HIP_ABDUCTION','HIP_ADDUCTION','PULLUP_ASSISTED','PULLUP_BW',
+  'KICKBACK_MED_CABLE',
 ];
 // Anything in the library but not yet in TOKEN_ORDER is appended automatically,
 // which keeps existing tokens stable while new exercises still encode.
@@ -828,7 +841,7 @@ function buildCustomProgram(b){
 const PATTERN_ORDER = [
   'SQUAT','HINGE','GLUTE','LEG_EXT','LEG_CURL','CALF','INCLINE_PRESS','FLAT_PRESS',
   'CHEST_ISO','VERT_PUSH','HORIZ_PULL','VERT_PULL','TRAPS','SIDE_DELT','REAR_DELT',
-  'TRI_OH','TRI_PUSHDOWN','BICEPS','ABS','NECK_CURL','NECK_EXT',
+  'TRI_OH','TRI_PUSHDOWN','BICEPS','ABS','NECK_CURL','NECK_EXT','GLUTE_ISO',
 ];
 const PAT_TO_TOKEN = {}; const TOKEN_TO_PAT = {};
 PATTERN_ORDER.forEach((p,i)=>{ PAT_TO_TOKEN[p]=i.toString(36); TOKEN_TO_PAT[i.toString(36)]=p; });
@@ -964,7 +977,7 @@ const EQUIPMENT_GROUPS = [
   { label:'Free weights', items:[EQ.BARBELL,EQ.DUMBBELLS,EQ.EZ_BAR,EQ.TRAP_BAR,EQ.PLATE] },
   { label:'Racks & benches', items:[EQ.RACK,EQ.FLAT_BENCH,EQ.ADJ_BENCH,EQ.INCLINE_STATION,EQ.SMITH,EQ.LANDMINE,EQ.LEVER_ARMS] },
   { label:'Cables & bars', items:[EQ.CABLE,EQ.LAT_PULLDOWN,EQ.PULLUP_BAR,EQ.NEUTRAL_BARS,EQ.WEIGHT_BELT,EQ.BANDS] },
-  { label:'Leg machines', items:[EQ.HACK,EQ.PENDULUM,EQ.LEG_PRESS_M,EQ.LEG_EXT_M,EQ.LEG_CURL_SEATED_M,EQ.LEG_CURL_LYING_M,EQ.LEG_CURL_KNEELING_M,EQ.CALF_STANDING_M,EQ.CALF_SEATED_M,EQ.CALF_SEATED_STRAIGHT_M,EQ.HIP_THRUST_M,EQ.HIP_THRUST_STATION] },
+  { label:'Leg machines', items:[EQ.HACK,EQ.PENDULUM,EQ.LEG_PRESS_M,EQ.LEG_EXT_M,EQ.LEG_CURL_SEATED_M,EQ.LEG_CURL_LYING_M,EQ.LEG_CURL_KNEELING_M,EQ.CALF_STANDING_M,EQ.CALF_SEATED_M,EQ.CALF_SEATED_STRAIGHT_M,EQ.HIP_THRUST_M,EQ.HIP_THRUST_STATION,EQ.KICKBACK_M,EQ.HIP_ABDUCTION_M,EQ.HIP_ADDUCTION_M] },
   { label:'Upper body machines', items:[EQ.CHEST_PRESS_M,EQ.INCLINE_PRESS_M,EQ.PEC_DECK,EQ.CHEST_FLY_M,EQ.SHOULDER_PRESS_M,EQ.LAT_RAISE_M,EQ.REAR_DELT_M,EQ.ROW_CS_M,EQ.TBAR_M,EQ.PULLDOWN_M,EQ.SHRUG_M,EQ.VIKING,EQ.SEAL_BENCH] },
   { label:'Other', items:[EQ.STEPPER,EQ.ROMAN_CHAIR,EQ.CRUNCH_M,EQ.CAPTAINS_CHAIR,EQ.HEAD_HARNESS] },
 ];
@@ -1674,7 +1687,7 @@ const SETS = {
   SQUAT:3, HINGE:3, GLUTE:3, LEG_EXT:3, LEG_CURL:3, CALF:3, INCLINE_PRESS:3,
   FLAT_PRESS:3, CHEST_ISO:3, VERT_PUSH:3, HORIZ_PULL:3, VERT_PULL:3, TRAPS:3,
   SIDE_DELT:3, REAR_DELT:3, TRI_OH:3, TRI_PUSHDOWN:3, BICEPS:3, ABS:3,
-  NECK_CURL:3, NECK_EXT:3,
+  NECK_CURL:3, NECK_EXT:3, GLUTE_ISO:3,
 };
 
 // Every consumer of a row reads its numbers through here. A row built by the
@@ -1721,6 +1734,7 @@ const PATTERN_MUSCLES = {
   ABS:           { ABS:1, OBLIQUES:0.5 },
   NECK_CURL:     { NECK:1 },
   NECK_EXT:      { NECK:1 },
+  GLUTE_ISO:     { GLUTES:1 },
 };
 
 // An override replaces its pattern default entirely.
@@ -1745,6 +1759,12 @@ const EXERCISE_MUSCLES = {
   SKULLCRUSHER_BB: { TRICEPS:1, FOREARMS:0.25 },
   LEG_RAISE_LYING: { ABS:1, OBLIQUES:0.5, ADDUCTORS:0.5 },
   LEG_RAISE_CHAIR: { ABS:1, OBLIQUES:0.5, ADDUCTORS:0.5 },
+  HIP_ADDUCTION:   { ADDUCTORS:1 },
+  // Straight-back kickbacks are hip extension, so the hamstrings assist. The
+  // diagonal medius version leans to abduction and stays glutes-only on the
+  // GLUTE_ISO pattern default.
+  KICKBACK_CABLE:  { GLUTES:1, HAMSTRINGS:0.5 },
+  KICKBACK_MACH:   { GLUTES:1, HAMSTRINGS:0.5 },
   DRAGON_FLAG_ECC: { ABS:1, OBLIQUES:0.5, LOWER_BACK:0.5 },
 };
 
