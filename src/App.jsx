@@ -1565,6 +1565,7 @@ const ExerciseRow = ({row, onSwap, detailed}) => {
 const DayBlock = ({day, index, detailed, onSwap}) => {
   const count = day.rows.filter(r => r.exId).length;
   const optional = /optional/i.test(day.name || '');
+  const mins = Math.round(dayStats(day).minutes / 5) * 5;
   return (
     <div className="rounded-2xl border border-stone-200 overflow-hidden bg-white shadow-sm">
       <div className="flex items-center gap-3 px-4 py-3 bg-stone-900">
@@ -1576,7 +1577,7 @@ const DayBlock = ({day, index, detailed, onSwap}) => {
         <div className="min-w-0 flex-1">
           <div className="text-sm font-semibold text-white leading-tight truncate">{day.name}</div>
           <div className="text-[11px] text-stone-300 mt-0.5">
-            {count} exercise{count === 1 ? '' : 's'}{optional ? ' · optional' : ''}
+            {count} exercise{count === 1 ? '' : 's'} | ~{mins} min{optional ? ' | optional' : ''}
           </div>
         </div>
       </div>
@@ -1925,15 +1926,65 @@ function restMinutes(s){
   return (lo + hi) / 2;
 }
 
-// A set is roughly 45 seconds of work, and one rest follows every set — the
-// rest after the last set doubles as the walk to the next exercise.
+// =====================================================
+// SESSION TIME
+// Three costs per exercise, each on its own key, because they vary
+// independently:
+//
+//   setup   — loading, stripping and getting into position. Keyed to
+//             EQUIPMENT. A stack machine is a pin; a barbell in a rack is
+//             plates on, plates off, and the walk. Paid once per exercise.
+//   warm-up — keyed to the primary MUSCLE, not the exercise. The first time a
+//             muscle comes up in a session it gets the full ramp; every later
+//             exercise on that already-warm muscle pays nothing. This is what
+//             makes a focused split cost less than full body: it keeps hitting
+//             muscles it has already warmed, full body keeps meeting cold ones.
+//   working — the prescribed sets, one minute each, plus the prescribed rest.
+//
+// A compound gets the full ramp when cold; an isolation gets one feel-out set,
+// per the ShredSmart rule that a full ramp on a lateral raise is overkill.
+// =====================================================
+const SETUP_MIN = {   // by equipment, minutes
+  stack: 1, cable: 1, machine: 1, dumbbell: 1, barbell: 1, rack: 2, bodyweight: 1, other: 1,
+};
+
+// Which setup class an exercise falls in — the slowest item it needs wins.
+function setupClass(exId){
+  const eq = EXERCISES[exId][1].map(e => e.toLowerCase());
+  const any = sub => eq.some(e => e.includes(sub));
+  if (any('rack')) return 'rack';                       // barbell needing a rack: the slowest
+  if (any('barbell') || any('trap bar') || any('ez bar') || any('smith')) return 'barbell';
+  if (any('dumbbell')) return 'dumbbell';
+  if (any('cable') || any('pulldown') || any('pull-up') || any('bars')) return 'cable';
+  if (any('machine') || any('press') || any('deck') || any('fly') ||
+      any('curl') || any('raise') || any('extension') || any('viking') ||
+      any('shrug') || any('thrust') || any('t-bar') || any('chair') || any('bench')) return 'machine';
+  return 'other';
+}
+
+const WARMUP_COMPOUND = 3;   // cold compound: full ramp, ~3 min with rest
+const WARMUP_ISOLATION = 1;  // cold isolation: one feel-out set, ~1 min
+const SET_MIN = 1;           // a working set, effort included, rest added on top
+
 function dayStats(day){
   const rows = day.rows.filter(r => r.exId);
+  const warmed = new Set();   // primary muscles already warmed this session
   let sets = 0, minutes = 0;
   for (const r of rows){
     const s = rowSpec(r);
     sets += s.sets;
-    minutes += s.sets * 0.75 + s.sets * restMinutes(s.rest);
+
+    minutes += SETUP_MIN[setupClass(r.exId)] || 1;
+
+    // Warm-up on the primary muscle only, and only if it is still cold.
+    const map = EXERCISE_MUSCLES[r.exId] || PATTERN_MUSCLES[r.slot.pattern] || {};
+    const primary = Object.keys(map).find(m => map[m] >= 1);
+    if (primary && !warmed.has(primary)){
+      minutes += s.model === 'SS' ? WARMUP_ISOLATION : WARMUP_COMPOUND;
+      warmed.add(primary);
+    }
+
+    minutes += s.sets * SET_MIN + s.sets * restMinutes(s.rest);
   }
   return { exercises: rows.length, sets, minutes };
 }
@@ -2006,9 +2057,8 @@ function ProgramGlance({prog}){
       )}
 
       <p className="mt-2.5 text-xs text-stone-500 leading-relaxed">
-        Session length assumes you take the prescribed rest. It counts the rest between every set as
-        well as the walk to the next exercise, so treat it as the honest upper end rather than the
-        time you spend lifting.
+        Session length counts the warm-ups, the rest between every set, as well as the setup of the
+        next exercise, so treat it as the honest upper end rather than the time you spend lifting.
       </p>
     </div>
   );
