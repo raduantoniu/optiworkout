@@ -1144,7 +1144,7 @@ function HomeScreen({onContinue, onCustom, onReload, onBuild}){
           </ul>
           <div className="mt-5 space-y-2.5">
             <PrimaryButton onClick={onContinue}>Continue from PhysiquePlan <ArrowRight className="w-4 h-4" /></PrimaryButton>
-            <SecondaryButton onClick={onCustom}>Build a custom program</SecondaryButton>
+            <SecondaryButton onClick={onCustom}>Choose a ShredSmart™ program</SecondaryButton>
             <SecondaryButton onClick={onReload}>Reload a program</SecondaryButton>
             <SecondaryButton onClick={onBuild}>Build a custom split</SecondaryButton>
           </div>
