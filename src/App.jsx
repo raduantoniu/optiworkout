@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ArrowRight, ArrowLeft, Check, Copy, X, AlertTriangle, BookOpen, Loader2, ChevronDown, Plus, GripVertical, RotateCcw } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Check, Copy, X, AlertTriangle, BookOpen, Loader2, ChevronDown, Plus, GripVertical, RotateCcw, Maximize2 } from 'lucide-react';
 
 // =====================================================
 // OPTIWORKOUT — v1
@@ -226,6 +226,38 @@ const POOLS = {
 // so the borrowed exercise differs from one already used elsewhere.
 const POOL_FALLBACK = { TRI_PUSHDOWN:'TRI_OH' };
 
+// Every exercise sits in exactly one pool, so the pattern can be recovered from
+// the exercise. That is what lets a swap cross a pool boundary without the slot
+// going on claiming a movement the lifter is no longer doing.
+const PATTERN_OF = {};
+Object.entries(POOLS).forEach(([pat, ids]) => ids.forEach(id => { PATTERN_OF[id] = pat; }));
+
+// Patterns that stay separate in programming but share one swap menu. Someone
+// looking for a pushdown should not have to discover that pushdowns only exist
+// in a slot their program never gave them, and the same goes for a hip thrust
+// in place of an RDL. Programming keeps them apart; choosing does not.
+const SWAP_GROUPS = [
+  ['TRI_OH','TRI_PUSHDOWN'],
+  ['HINGE','GLUTE'],
+];
+const SWAP_GROUP_OF = {};
+SWAP_GROUPS.forEach(g => g.forEach(pat => { SWAP_GROUP_OF[pat] = g; }));
+// The row's own pattern leads, so the current exercise's family is at the top.
+const swapPatterns = pat => {
+  const g = SWAP_GROUP_OF[pat];
+  return g ? [pat, ...g.filter(x => x !== pat)] : [pat];
+};
+
+// One construction site for a resolved row. The pattern follows the exercise,
+// so rep range, rest, effort target and volume credit all describe what is
+// actually being done rather than what the skeleton originally asked for.
+function makeRow(slot, exId, counters){
+  if (!exId) return { slot, exId:null, range:null, rest:null };
+  const pattern = PATTERN_OF[exId] || slot.pattern;
+  const s = pattern === slot.pattern ? slot : { ...slot, pattern };
+  return { slot:s, exId, range: computeRange(pattern, exId, counters), rest: restFor(pattern, exId) };
+}
+
 const PATTERN_LABEL = {
   SQUAT:'Squat-type', HINGE:'Hip hinge', GLUTE:'Glute', LEG_EXT:'Quad isolation',
   LEG_CURL:'Hamstring isolation', CALF:'Calf', INCLINE_PRESS:'Incline press',
@@ -422,63 +454,194 @@ const imageFor = exId => IMAGE_BASE + exId.toLowerCase().replace(/_/g, '-') + '.
 // SKELETONS — ordered movement-pattern slots
 // =====================================================
 const S = (pattern, opts={}) => ({pattern, ...opts});
+// =====================================================
+// SKELETONS
+// Every split is defined as movement patterns only. The resolver fills each
+// slot with the best exercise the lifter's equipment allows, so one skeleton
+// serves a commercial gym and a garage.
+//
+// `pros` and `cons` are shown on the choice screen. They describe THIS split
+// against its siblings at the same day count, never against a different day
+// count, because the day screen already covers what frequency buys and costs.
+//
+// `rotates` marks a split whose workouts run in sequence rather than on fixed
+// days. There, dayCount is sessions a week and days.length is the cycle length,
+// and weekFactor turns the two into an average weekly volume.
+// =====================================================
 const SKELETONS = {
-  FB2:{ name:'Full Body 2x', days:1 && [
-    { name:'Workout A', slots:[S('SQUAT'),S('LEG_CURL'),S('INCLINE_PRESS'),S('HORIZ_PULL'),S('SIDE_DELT'),S('TRI_OH'),S('BICEPS')] },
-    { name:'Workout B', slots:[S('HINGE'),S('LEG_EXT'),S('VERT_PUSH'),S('VERT_PULL'),S('FLAT_PRESS'),S('TRI_PUSHDOWN'),S('BICEPS')] },
-  ], dayCount:2, blurb:'Two complete full-body sessions. The minimum that still covers everything.' },
 
-  FB2O:{ name:'Full Body 2x + Optional Third', days:[
-    { name:'Workout A', slots:[S('SQUAT'),S('LEG_CURL'),S('INCLINE_PRESS'),S('HORIZ_PULL'),S('SIDE_DELT'),S('TRI_OH'),S('BICEPS')] },
-    { name:'Workout B', slots:[S('HINGE'),S('LEG_EXT'),S('VERT_PUSH'),S('VERT_PULL'),S('FLAT_PRESS'),S('TRI_PUSHDOWN'),S('BICEPS')] },
-    { name:'Workout C (optional)', slots:[S('FLAT_PRESS'),S('HORIZ_PULL'),S('VERT_PUSH'),S('SIDE_DELT'),S('CALF'),S('ABS')] },
-  ], dayCount:2, blurb:'Two complete sessions plus a third that shares no exercises with them. Run it in the weeks you can, skip it in the weeks you cannot.' },
+  // ---------- 2 days ----------
+  FBPP2:{ name:'Full Body Push / Full Body Pull', dayCount:2, days:[
+    { name:'Full Body Push', slots:[S('SQUAT'),S('LEG_EXT'),S('CALF'),S('INCLINE_PRESS'),S('FLAT_PRESS'),S('TRI_OH'),S('SIDE_DELT')] },
+    { name:'Full Body Pull', slots:[S('HINGE'),S('LEG_CURL'),S('VERT_PULL'),S('HORIZ_PULL'),S('BICEPS'),S('REAR_DELT'),S('SIDE_DELT')] },
+  ],
+    pros:['Fewer warm-ups and setup changes within each session compared to Full Body.'],
+    cons:['Each major muscle is trained once per week.',
+          'Multiple pressing/pulling movements are performed in a row which leads to reduced performance in subsequent exercises.'] },
 
-  ULU3:{ name:'Upper / Lower / Upper', days:[
-    { name:'Upper 1', slots:[S('INCLINE_PRESS'),S('HORIZ_PULL'),S('VERT_PUSH'),S('CHEST_ISO'),S('BICEPS'),S('REAR_DELT')] },
-    { name:'Lower',   slots:[S('SQUAT'),S('GLUTE'),S('LEG_EXT'),S('LEG_CURL'),S('CALF'),S('ABS')] },
-    { name:'Upper 2', slots:[S('VERT_PULL'),S('VERT_PUSH'),S('FLAT_PRESS'),S('HORIZ_PULL'),S('TRAPS'),S('TRI_OH'),S('SIDE_DELT')] },
-  ], dayCount:3, blurb:'Upper body twice, lower once. Favours the torso.' },
+  LPUP2:{ name:'Lower Push + Upper Pull / Lower Pull + Upper Push', dayCount:2, days:[
+    { name:'Lower Push + Upper Pull', slots:[S('SQUAT'),S('LEG_EXT'),S('CALF'),S('VERT_PULL'),S('HORIZ_PULL'),S('BICEPS'),S('SIDE_DELT')] },
+    { name:'Lower Pull + Upper Push', slots:[S('HINGE'),S('LEG_CURL'),S('INCLINE_PRESS'),S('FLAT_PRESS'),S('TRI_OH'),S('REAR_DELT'),S('SIDE_DELT')] },
+  ],
+    pros:['Fewer warm-ups and setup changes within each session compared to Full Body.',
+          'Heavy lower-body and upper-body compound lifts are distributed between the two sessions.'],
+    cons:['Each major muscle is trained once per week.',
+          'Multiple pressing/pulling movements are performed in a row which leads to reduced performance in subsequent exercises.'] },
 
-  FB3:{ name:'Full Body 3x', days:[
-    { name:'Workout A', slots:[S('SQUAT'),S('LEG_CURL'),S('VERT_PULL'),S('VERT_PUSH'),S('FLAT_PRESS'),S('BICEPS'),S('REAR_DELT')] },
-    { name:'Workout B', slots:[S('HINGE'),S('LEG_EXT'),S('INCLINE_PRESS'),S('HORIZ_PULL'),S('TRI_OH'),S('SIDE_DELT')] },
-    { name:'Workout C', slots:[S('SQUAT'),S('VERT_PUSH'),S('VERT_PULL'),S('HORIZ_PULL'),S('CHEST_ISO'),S('BICEPS'),S('TRI_PUSHDOWN')] },
-  ], dayCount:3, blurb:'Every muscle three times a week. Highest frequency, most balanced.' },
+  FB2:{ name:'Full Body 2x', dayCount:2, days:[
+    { name:'Workout 1', slots:[S('SQUAT'),S('LEG_CURL'),S('VERT_PULL'),S('FLAT_PRESS'),S('BICEPS'),S('SIDE_DELT'),S('CALF')] },
+    { name:'Workout 2', slots:[S('HINGE'),S('LEG_EXT'),S('INCLINE_PRESS'),S('HORIZ_PULL'),S('TRI_OH'),S('REAR_DELT'),S('SIDE_DELT')] },
+  ],
+    pros:['Each major muscle is trained twice per week.',
+          'Pressing and pulling work is distributed across all sessions which leads to better performance in each individual exercise.'],
+    cons:['Sessions take longer due to more warm-ups and setup changes within each session.'] },
 
-  UL4:{ name:'Upper / Lower 4x', days:[
-    { name:'Lower 1', slots:[S('SQUAT'),S('HINGE'),S('CALF'),S('NECK_CURL',{optional:true}),S('NECK_EXT',{optional:true})] },
-    { name:'Upper 1', slots:[S('FLAT_PRESS'),S('HORIZ_PULL'),S('VERT_PUSH'),S('VERT_PULL'),S('BICEPS'),S('TRI_PUSHDOWN'),S('REAR_DELT')] },
-    { name:'Lower 2', slots:[S('GLUTE'),S('SQUAT'),S('LEG_CURL'),S('LEG_EXT'),S('CALF'),S('ABS')] },
-    { name:'Upper 2', slots:[S('VERT_PULL'),S('INCLINE_PRESS'),S('HORIZ_PULL'),S('FLAT_PRESS'),S('TRAPS'),S('BICEPS'),S('TRI_OH'),S('SIDE_DELT')] },
-  ], dayCount:4, blurb:'Everything twice a week, split cleanly down the middle.' },
+  // ---------- 3 days ----------
+  ULU3:{ name:'Upper / Lower / Upper', dayCount:3, days:[
+    { name:'Upper', slots:[S('INCLINE_PRESS'),S('HORIZ_PULL'),S('CHEST_ISO'),S('TRI_OH'),S('SIDE_DELT')] },
+    { name:'Lower', slots:[S('SQUAT'),S('HINGE'),S('LEG_EXT'),S('LEG_CURL'),S('CALF'),S('ABS')] },
+    { name:'Upper', slots:[S('VERT_PULL'),S('VERT_PUSH'),S('HORIZ_PULL'),S('FLAT_PRESS'),S('BICEPS'),S('REAR_DELT')] },
+  ],
+    pros:['Upper-body is trained twice per week.',
+          'Upper-body sessions alternate between pressing and pulling emphasis.',
+          'Sessions are relatively short.'],
+    cons:['Lower body is trained once per week.'] },
 
-  PPLU:{ name:'Push / Pull / Legs / Upper', days:[
-    { name:'Push',  slots:[S('INCLINE_PRESS'),S('FLAT_PRESS'),S('TRI_OH'),S('SIDE_DELT'),S('ABS')] },
-    { name:'Pull',  slots:[S('VERT_PULL'),S('HORIZ_PULL'),S('BICEPS'),S('REAR_DELT'),S('NECK_CURL',{optional:true}),S('NECK_EXT',{optional:true})] },
-    { name:'Legs',  slots:[S('SQUAT'),S('HINGE'),S('LEG_EXT'),S('LEG_CURL'),S('CALF')] },
-    { name:'Upper', slots:[S('TRAPS'),S('VERT_PUSH'),S('VERT_PULL'),S('FLAT_PRESS'),S('BICEPS'),S('TRI_PUSHDOWN')] },
-  ], dayCount:4, blurb:'Classic push/pull/legs with an extra upper day to lift torso frequency.' },
+  PPL3:{ name:'Push / Pull / Legs', dayCount:3, days:[
+    { name:'Push', slots:[S('INCLINE_PRESS'),S('VERT_PUSH'),S('FLAT_PRESS'),S('CHEST_ISO'),S('TRI_OH'),S('SIDE_DELT')] },
+    { name:'Pull', slots:[S('VERT_PULL'),S('HORIZ_PULL'),S('HORIZ_PULL'),S('BICEPS'),S('REAR_DELT'),S('SIDE_DELT')] },
+    { name:'Legs', slots:[S('SQUAT'),S('HINGE'),S('LEG_EXT'),S('LEG_CURL'),S('CALF'),S('ABS')] },
+  ],
+    pros:['Fewer equipment changes and warm-ups within each session.',
+          'Simple, familiar structure.'],
+    cons:['Most muscles are trained once per week.',
+          'Multiple pressing/pulling movements are performed in a row which leads to reduced performance in subsequent exercises.'] },
 
-  PPLE:{ name:'Push / Pull, Legs Every Session', days:[
-    { name:'Day 1', slots:[S('HINGE'),S('FLAT_PRESS'),S('VERT_PUSH'),S('CHEST_ISO'),S('TRI_OH'),S('NECK_CURL',{optional:true}),S('NECK_EXT',{optional:true})] },
-    { name:'Day 2', slots:[S('SQUAT'),S('VERT_PULL'),S('HORIZ_PULL'),S('BICEPS'),S('REAR_DELT'),S('CALF')] },
-    { name:'Day 3', slots:[S('SQUAT'),S('INCLINE_PRESS'),S('VERT_PUSH'),S('FLAT_PRESS'),S('TRI_PUSHDOWN'),S('SIDE_DELT')] },
-    { name:'Day 4', slots:[S('VERT_PULL'),S('HORIZ_PULL'),S('TRAPS'),S('BICEPS'),S('LEG_CURL'),S('LEG_EXT'),S('CALF')] },
-  ], dayCount:4, blurb:'Push and pull upper work, with leg training spread across every session instead of stacked into one.' },
+  FB3:{ name:'Full Body 3x', dayCount:3, days:[
+    { name:'Workout 1', slots:[S('INCLINE_PRESS'),S('VERT_PULL'),S('CHEST_ISO'),S('HORIZ_PULL'),S('SIDE_DELT'),S('CALF')] },
+    { name:'Workout 2', slots:[S('SQUAT'),S('LEG_EXT'),S('VERT_PUSH'),S('BICEPS'),S('TRI_OH'),S('SIDE_DELT')] },
+    { name:'Workout 3', slots:[S('HINGE'),S('LEG_CURL'),S('HORIZ_PULL'),S('FLAT_PRESS'),S('REAR_DELT'),S('ABS')] },
+  ],
+    pros:['Chest and back are trained twice per week.',
+          'Pressing and pulling work is distributed across all sessions which leads to better performance in each individual exercise.'],
+    cons:['Sessions take longer due to more warm-ups and setup changes within each session.'] },
 
-  D5:{ name:'Lower / Torso / Arms / Lower / Upper', days:[
-    { name:'Lower 1', slots:[S('SQUAT'),S('HINGE'),S('LEG_EXT'),S('LEG_CURL'),S('CALF'),S('ABS')] },
-    { name:'Torso',   slots:[S('INCLINE_PRESS'),S('HORIZ_PULL'),S('CHEST_ISO'),S('VERT_PULL'),S('REAR_DELT')] },
-    { name:'Arms',    slots:[S('VERT_PUSH'),S('BICEPS'),S('TRI_OH'),S('BICEPS'),S('TRI_PUSHDOWN'),S('SIDE_DELT')] },
-    { name:'Lower 2', slots:[S('GLUTE'),S('SQUAT'),S('LEG_CURL'),S('ABS'),S('NECK_CURL',{optional:true}),S('NECK_EXT',{optional:true})] },
-    { name:'Upper',   slots:[S('VERT_PULL'),S('FLAT_PRESS'),S('HORIZ_PULL'),S('CHEST_ISO'),S('TRAPS'),S('REAR_DELT')] },
-  ], dayCount:5, blurb:'Five shorter sessions with a dedicated arm day. Most volume, most frequency.' },
+  AB3:{ name:'A / B Alternating', dayCount:3, rotates:true, days:[
+    { name:'Workout A', slots:[S('SQUAT'),S('INCLINE_PRESS'),S('VERT_PUSH'),S('CHEST_ISO'),S('TRI_OH'),S('SIDE_DELT')] },
+    { name:'Workout B', slots:[S('HINGE'),S('VERT_PULL'),S('HORIZ_PULL'),S('BICEPS'),S('REAR_DELT'),S('CALF'),S('ABS')] },
+  ],
+    pros:['Each major muscle group is trained every 3-5 days.',
+          'More frequent practice of the same lifts accelerates strength gains through faster skill development.'],
+    cons:['Lower-body receives relatively little weekly work.'] },
+
+  ABCD3:{ name:'A / B / C / D Alternating', dayCount:3, rotates:true, days:[
+    { name:'Workout A', slots:[S('HINGE'),S('LEG_CURL'),S('INCLINE_PRESS'),S('VERT_PULL'),S('FLAT_PRESS'),S('HORIZ_PULL')] },
+    { name:'Workout B', slots:[S('SQUAT'),S('LEG_EXT'),S('SIDE_DELT'),S('TRI_OH'),S('BICEPS'),S('REAR_DELT'),S('CALF')] },
+    { name:'Workout C', slots:[S('HINGE'),S('LEG_CURL'),S('FLAT_PRESS'),S('HORIZ_PULL'),S('VERT_PUSH'),S('VERT_PULL')] },
+    { name:'Workout D', slots:[S('SQUAT'),S('LEG_EXT'),S('SIDE_DELT'),S('BICEPS'),S('TRI_PUSHDOWN'),S('CALF')] },
+  ],
+    pros:['All major muscle groups receive substantial weekly volume.',
+          'Most muscle groups are trained more than once a week.'],
+    cons:["The rotation doesn't align with fixed weekdays.",
+          'The full cycle takes longer to repeat, making the schedule less predictable.',
+          'Sessions take longer due to more warm-ups and setup changes within each session.'] },
+
+  // ---------- 4 days ----------
+  PPLU4:{ name:'Push / Pull / Legs / Upper', dayCount:4, days:[
+    { name:'Push', slots:[S('FLAT_PRESS'),S('INCLINE_PRESS'),S('TRI_OH'),S('SIDE_DELT')] },
+    { name:'Pull', slots:[S('VERT_PULL'),S('HORIZ_PULL'),S('BICEPS'),S('REAR_DELT')] },
+    { name:'Legs', slots:[S('SQUAT'),S('HINGE'),S('LEG_EXT'),S('LEG_CURL'),S('CALF')] },
+    { name:'Upper Body', slots:[S('VERT_PUSH'),S('CHEST_ISO'),S('HORIZ_PULL'),S('SIDE_DELT')] },
+  ],
+    pros:['The upper body lifts are well distributed and prioritized.',
+          'Upper-body is trained twice per week.',
+          'Sessions are relatively short due to reduced need for warm-ups and setup changes.',
+          'Exercises within each workout have a clear focus.'],
+    cons:['Lower-body receives comparatively less volume.',
+          'Lower-body is trained once per week.',
+          'Multiple pressing/pulling movements are performed in a row which leads to reduced performance in subsequent exercises.'] },
+
+  LULA4:{ name:'Lower / Upper / Legs + Arms / Upper', dayCount:4, days:[
+    { name:'Lower', slots:[S('SQUAT'),S('HINGE'),S('LEG_EXT'),S('LEG_CURL'),S('CALF')] },
+    { name:'Upper', slots:[S('INCLINE_PRESS'),S('HORIZ_PULL'),S('CHEST_ISO'),S('VERT_PULL'),S('SIDE_DELT')] },
+    { name:'Legs + Arms', slots:[S('GLUTE'),S('SQUAT'),S('TRI_OH'),S('BICEPS'),S('SIDE_DELT')] },
+    { name:'Upper', slots:[S('VERT_PUSH'),S('VERT_PULL'),S('FLAT_PRESS'),S('HORIZ_PULL'),S('REAR_DELT')] },
+  ],
+    pros:['Every major muscle is trained twice per week.',
+          'Arms get trained fresh without fatigue from prior upper-body compound movements.',
+          'Upper-body pressing and pulling movements are never performed back to back.',
+          'Each session can accommodate at least one extra exercise to focus on specific muscle groups.'],
+    cons:['Sessions can take longer due to more warm-ups and setup changes within each session.'] },
+
+  FB4:{ name:'Full Body 4x', dayCount:4, days:[
+    { name:'Workout 1', slots:[S('HINGE'),S('LEG_CURL'),S('FLAT_PRESS'),S('INCLINE_PRESS'),S('SIDE_DELT')] },
+    { name:'Workout 2', slots:[S('SQUAT'),S('LEG_EXT'),S('VERT_PULL'),S('HORIZ_PULL'),S('REAR_DELT')] },
+    { name:'Workout 3', slots:[S('GLUTE'),S('CALF'),S('VERT_PUSH'),S('BICEPS'),S('TRI_OH')] },
+    { name:'Workout 4', slots:[S('SQUAT'),S('CALF'),S('INCLINE_PRESS'),S('HORIZ_PULL'),S('SIDE_DELT')] },
+  ],
+    pros:['Every major muscle is trained twice per week.',
+          'No full leg day. Lower-body volume is distributed across the week.',
+          'The big compound lifts are well distributed and prioritized for performance and fatigue management.'],
+    cons:['Longer sessions: more warm-ups and equipment changes than a body-part-focused split.',
+          'Upper-body lifts are always trained after two lower-body exercises.'] },
+
+  // ---------- 5 days ----------
+  L5A:{ name:'Lower / Chest + Back / Shoulders + Arms / Lower + Neck / Upper', dayCount:5, days:[
+    { name:'Lower', slots:[S('SQUAT'),S('HINGE'),S('LEG_EXT'),S('LEG_CURL'),S('CALF'),S('ABS')] },
+    { name:'Chest + Back', slots:[S('INCLINE_PRESS'),S('HORIZ_PULL'),S('FLAT_PRESS'),S('VERT_PULL'),S('REAR_DELT')] },
+    { name:'Shoulders + Arms', slots:[S('VERT_PUSH'),S('BICEPS'),S('TRI_OH'),S('BICEPS'),S('TRI_PUSHDOWN'),S('SIDE_DELT')] },
+    { name:'Lower + Neck', slots:[S('GLUTE'),S('SQUAT'),S('LEG_CURL'),S('NECK_CURL'),S('NECK_EXT')] },
+    { name:'Upper', slots:[S('VERT_PULL'),S('FLAT_PRESS'),S('HORIZ_PULL'),S('TRAPS'),S('CHEST_ISO'),S('SIDE_DELT')] },
+  ],
+    pros:['Every major lift is given priority in a specific workout.',
+          'Opposing muscle groups are trained together for improved performance.',
+          'Shoulders and arms get their own session, trained fresh without fatigue from other upper-body compound lifts.',
+          'Heavy lower-body compound lifts get their own dedicated workouts for improved focus and fatigue management.'],
+    cons:['Longer sessions: more warm-ups and equipment changes than a body-part-focused split.'] },
+
+  L5B:{ name:'Legs / Push / Pull / Lower + Neck / Upper', dayCount:5, days:[
+    { name:'Legs', slots:[S('SQUAT'),S('HINGE'),S('LEG_EXT'),S('LEG_CURL'),S('CALF'),S('ABS')] },
+    { name:'Push', slots:[S('INCLINE_PRESS'),S('VERT_PUSH'),S('FLAT_PRESS'),S('TRI_OH'),S('SIDE_DELT')] },
+    { name:'Pull', slots:[S('VERT_PULL'),S('HORIZ_PULL'),S('TRAPS'),S('BICEPS'),S('REAR_DELT')] },
+    { name:'Lower + Neck', slots:[S('GLUTE'),S('SQUAT'),S('LEG_CURL'),S('NECK_CURL'),S('NECK_EXT')] },
+    { name:'Upper', slots:[S('HORIZ_PULL'),S('FLAT_PRESS'),S('VERT_PULL'),S('CHEST_ISO'),S('BICEPS'),S('TRI_PUSHDOWN'),S('SIDE_DELT')] },
+  ],
+    pros:['Every major lift is given priority in a specific workout.',
+          'Heavy lower-body compound lifts get their own dedicated workouts for improved focus and fatigue management.',
+          'Shorter sessions: less warm-ups and equipment changes within each session.'],
+    cons:['Multiple pressing/pulling movements are performed in a row which leads to reduced performance in subsequent exercises.'] },
 };
-// FB2 uses a guard above purely for readability; normalise it here.
-SKELETONS.FB2.days = [
-  { name:'Workout A', slots:[S('SQUAT'),S('LEG_CURL'),S('INCLINE_PRESS'),S('HORIZ_PULL'),S('SIDE_DELT'),S('TRI_OH'),S('BICEPS')] },
-  { name:'Workout B', slots:[S('HINGE'),S('LEG_EXT'),S('VERT_PUSH'),S('VERT_PULL'),S('FLAT_PRESS'),S('TRI_PUSHDOWN'),S('BICEPS')] },
+
+// The day screen carries volume, frequency and practicality, because those
+// follow from how often you train rather than from which split you pick.
+const DAY_TIERS = [
+  { n:2, label:'2 days a week',
+    pros:['Easy to fit around a busy lifestyle',
+          'Enough training to build muscle and strength'],
+    cons:['Low total volume',
+          'Limited room for prioritization',
+          'Smaller muscle groups get less direct attention',
+          'Workouts can involve more exercises and setup'] },
+  { n:3, label:'3 days a week',
+    pros:['Enough overall volume for great progress',
+          'Most muscle groups can be trained twice per week',
+          'Easy to fit into your schedule'],
+    cons:['Reduced lower body volume or frequency',
+          'Smaller muscle groups get less direct attention',
+          'Workouts can involve more exercises and setup'] },
+  { n:4, label:'4 days a week',
+    pros:['Most muscle groups can be trained twice per week',
+          'Easy to prioritize individual muscles and lifts',
+          'Workouts can be shorter and better organized'],
+    cons:['Requires four gym commitments every week',
+          'More vulnerable to disruption from a busy schedule'] },
+  { n:5, label:'5 days a week',
+    pros:['Enough room to introduce neglected muscle groups',
+          'All important muscle groups can be trained twice per week',
+          'Easy to prioritize individual muscles and lifts',
+          'Workouts can be shorter and better organized'],
+    cons:['Requires five gym commitments every week',
+          'More vulnerable to disruption from a busy schedule'] },
 ];
 
 const SKELETONS_BY_DAYS = days => Object.entries(SKELETONS).filter(([,s]) => s.dayCount === days);
@@ -523,13 +686,12 @@ function buildProgram(skelId, owned, vetoed = new Set()){
   const days = skel.days.map((day, di) => {
     const counters = {};
     const rows = day.slots.map((slot, ri) => {
-      const exId = picked[`${di}:${ri}`];
-      if (!exId) return { slot, exId:null, range:null, rest:null };
-      return { slot, exId, range: computeRange(slot.pattern, exId, counters), rest: restFor(slot.pattern, exId) };
+      return makeRow(slot, picked[`${di}:${ri}`], counters);
     });
     return { name: day.name, rows };
   });
-  return { skelId, name: skel.name, days, unserviceable: [...new Set(unserviceable)] };
+  return { skelId, name: skel.name, days, dayCount: skel.dayCount, rotates: !!skel.rotates,
+           unserviceable: [...new Set(unserviceable)] };
 }
 
 // =====================================================
@@ -601,11 +763,12 @@ function decodeProgram(code){
       if (tok === '-'){ rows.push({slot, exId:null, range:null, rest:null}); continue; }
       const exId = TOKEN_TO_ID[tok];
       if (!exId) return { ok:false, error:'That code refers to an exercise this version does not have.' };
-      rows.push({ slot, exId, range: computeRange(slot.pattern, exId, counters), rest: restFor(slot.pattern, exId) });
+      rows.push(makeRow(slot, exId, counters));
     }
     days.push({ name:d.name, rows });
   }
-  return { ok:true, seq:parseInt(seqStr,10)||1, skelId, name:skel.name, days, unserviceable:[] };
+  return { ok:true, seq:parseInt(seqStr,10)||1, skelId, name:skel.name, days,
+           dayCount:skel.dayCount, rotates:!!skel.rotates, unserviceable:[] };
 }
 
 // =====================================================
@@ -637,7 +800,8 @@ function resolveItems(items){
   return items.map(it => {
     const auto = autoSpec(it.pattern, it.exId, counters);
     const ov = it.ov || {};
-    return { slot:{pattern:it.pattern}, exId:it.exId, uid:it.uid, ov, ...auto, ...ov };
+    const slot = it.opt ? { pattern:it.pattern, optional:true } : { pattern:it.pattern };
+    return { slot, exId:it.exId, uid:it.uid, ov, opt:!!it.opt, ...auto, ...ov };
   });
 }
 
@@ -647,7 +811,9 @@ function buildCustomProgram(b){
     name: (b.names[i] || '').trim() || `Workout ${i+1}`,
     rows: resolveItems(items),
   })).filter(d => d.rows.length);
-  return { custom:true, name:'Custom Split', days, unserviceable:[] };
+  const freq = b.freq || days.length;
+  return { custom:true, name:'Custom Split', days,
+           dayCount: freq, rotates: freq !== days.length, unserviceable:[] };
 }
 
 // =====================================================
@@ -684,13 +850,19 @@ function encodeCustom(prog, seq = 1){
         PAT_TO_TOKEN[r.slot.pattern], ID_TO_TOKEN[r.exId],
         ov.sets  != null ? String(ov.sets) : '',
         cleanField(ov.range), cleanField(ov.rest), cleanField(ov.rir), cleanField(ov.model),
+        r.slot.optional ? 'o' : '',
       ];
       while (f.length > 2 && f[f.length-1] === '') f.pop();
       return f.join(':');
     }).join(',');
     return `${cleanField(d.name)}~${rows}`;
   }).join(';');
-  const payload = `${seq}|${body}`;
+  // Sessions a week rides on the sequence field. Codes issued before rotation
+  // existed carry no star and fall back to one session per workout.
+  const cycle = prog.days.length;
+  const head = prog.rotates && prog.dayCount && prog.dayCount !== cycle
+    ? `${seq}*${prog.dayCount}` : `${seq}`;
+  const payload = `${head}|${body}`;
   return `OPC1-${b64urlUtf8(payload)}-${checksum2(payload)}`;
 }
 
@@ -702,7 +874,9 @@ function decodeCustom(code){
   if (checksum2(payload) !== m[2]) return { ok:false, error:'That code failed its check. A character is likely missing or mistyped.' };
   const cut = payload.indexOf('|');
   if (cut < 0) return { ok:false, error:'That code is incomplete.' };
-  const seq = parseInt(payload.slice(0, cut), 10) || 1;
+  const [seqStr, freqStr] = payload.slice(0, cut).split('*');
+  const seq = parseInt(seqStr, 10) || 1;
+  const freq = freqStr ? parseInt(freqStr, 10) : null;
 
   const days = [];
   for (const dStr of payload.slice(cut+1).split(';')){
@@ -724,12 +898,16 @@ function decodeCustom(code){
       if (f[4]) ov.rest  = f[4];
       if (f[5]) ov.rir   = f[5];
       if (f[6]) ov.model = f[6];
-      rows.push({ slot:{pattern}, exId, uid:newUid(), ov, ...auto, ...ov });
+      const opt = f[7] === 'o';
+      const slot = opt ? { pattern, optional:true } : { pattern };
+      rows.push({ slot, exId, uid:newUid(), ov, opt, ...auto, ...ov });
     }
     days.push({ name: name || `Workout ${days.length+1}`, rows });
   }
   if (!days.length) return { ok:false, error:'That code has no workouts in it.' };
-  return { ok:true, custom:true, seq, name:'Custom Split', days, unserviceable:[] };
+  const cycle = days.length;
+  return { ok:true, custom:true, seq, name:'Custom Split', days,
+           dayCount: freq || cycle, rotates: !!freq && freq !== cycle, unserviceable:[] };
 }
 
 // One entry point for both schemas, so every caller stays schema-agnostic.
@@ -875,17 +1053,45 @@ const StepBar = ({current, total}) => (
 // Exercise images are 1000 x 600 (5:3). The frame matches that ratio exactly,
 // and object-contain guarantees the whole movement stays visible even if an
 // image is exported at a slightly different size.
-const ExerciseImage = ({exId, className=''}) => {
+const ExerciseImage = ({exId, className='', expandable=false}) => {
   const [failed, setFailed] = useState(false);
+  const [open, setOpen] = useState(false);
   const name = EXERCISES[exId][0];
   if (failed) return (
     <div className={`rounded-lg border border-stone-200 bg-stone-100 aspect-[5/3] ${className}`} />
   );
   return (
-    <div className={`rounded-lg overflow-hidden bg-white border border-white aspect-[5/3] ${className}`}>
-      <img src={imageFor(exId)} alt={name} onError={() => setFailed(true)}
-        className="w-full h-full object-contain" />
-    </div>
+    <>
+      <div
+        onClick={expandable ? (e => { e.stopPropagation(); setOpen(true); }) : undefined}
+        className={`relative rounded-lg overflow-hidden bg-white border border-white aspect-[5/3] ${
+          expandable ? 'cursor-zoom-in group' : ''} ${className}`}>
+        <img src={imageFor(exId)} alt={name} onError={() => setFailed(true)}
+          className="w-full h-full object-contain" />
+        {expandable && (
+          <div className="absolute bottom-1 right-1 w-5 h-5 rounded-full bg-stone-900/55 flex items-center justify-center opacity-80 group-hover:opacity-100 transition-opacity">
+            <Maximize2 className="w-3 h-3 text-white" />
+          </div>
+        )}
+      </div>
+      {open && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-stone-900/80 p-4"
+          onClick={e => { e.stopPropagation(); setOpen(false); }}>
+          <div className="max-w-2xl w-full" onClick={e => e.stopPropagation()}>
+            <div className="bg-white rounded-2xl overflow-hidden shadow-xl">
+              <img src={imageFor(exId)} alt={name} className="w-full max-h-[75vh] object-contain" />
+              <div className="px-4 py-3 flex items-center justify-between gap-3 border-t border-stone-100">
+                <span className="text-sm font-medium text-stone-900">{name}</span>
+                <button onClick={() => setOpen(false)}
+                  className="flex-shrink-0 w-8 h-8 rounded-full hover:bg-stone-100 flex items-center justify-center transition-colors">
+                  <X className="w-4 h-4 text-stone-500" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
@@ -1019,15 +1225,56 @@ function AcknowledgeScreen({ss1, onBack, onContinue}){
   );
 }
 
-function DaysScreen({onBack, onPick, step, total}){
-  const options = [
-    { n:2, label:'2 days', note:'A tight schedule, or training around another sport.' },
-    { n:3, label:'3 days', note:'The most common sustainable commitment.' },
-    { n:4, label:'4 days', note:'Serious training with room for recovery.' },
-    { n:5, label:'5 days', note:'Shorter sessions, higher frequency.' },
-  ];
+// Pros and cons are folded away by default on both choice screens. Four cards
+// each showing seven lines of small text is a wall, and the lifter is choosing
+// between headlines first and detail second.
+function ProsConsDisclosure({pros, cons, open, onToggle}){
   return (
-    <Card className="max-w-xl">
+    <>
+      <button onClick={e => { e.stopPropagation(); onToggle(); }}
+        className="w-full px-5 py-2.5 border-t border-stone-100 flex items-center justify-between text-left hover:bg-stone-50 transition-colors">
+        <span className="text-xs font-medium text-stone-500">Pros and cons</span>
+        <ChevronDown className={`w-3.5 h-3.5 text-stone-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="px-5 pb-4" onClick={e => e.stopPropagation()}>
+          <ProsCons pros={pros} cons={cons} />
+        </div>
+      )}
+    </>
+  );
+}
+
+// Pros and cons render the same way on both choice screens.
+function ProsCons({pros = [], cons = []}){
+  const List = ({items, mark, tone}) => items.length === 0 ? null : (
+    <ul className="space-y-1">
+      {items.map((t, i) => (
+        <li key={i} className="flex gap-2 text-xs leading-relaxed text-stone-600">
+          <span className={`flex-shrink-0 font-semibold ${tone}`}>{mark}</span>
+          <span>{t}</span>
+        </li>
+      ))}
+    </ul>
+  );
+  return (
+    <div className="grid sm:grid-cols-2 gap-x-5 gap-y-3">
+      <div>
+        <div className="text-[10px] uppercase tracking-wider text-stone-400 mb-1.5">Pros</div>
+        <List items={pros} mark="+" tone="text-emerald-600" />
+      </div>
+      <div>
+        <div className="text-[10px] uppercase tracking-wider text-stone-400 mb-1.5">Cons</div>
+        <List items={cons} mark="−" tone="text-stone-400" />
+      </div>
+    </div>
+  );
+}
+
+function DaysScreen({onBack, onPick, step, total}){
+  const [open, setOpen] = useState(null);
+  return (
+    <Card className="max-w-2xl">
       <BackButton onClick={onBack} />
       <StepBar current={step} total={total} />
       <Eyebrow>Schedule</Eyebrow>
@@ -1035,17 +1282,31 @@ function DaysScreen({onBack, onPick, step, total}){
         How many days a week can you train without missing workouts?
       </h2>
       <p className="mt-2 text-stone-600 text-sm leading-relaxed">
-        Not what you'd like to do. What you're sure you can sustain for the next three months, even through your most chaotic and
-        stressful periods. A 3-day program you stick to
-        consistently beats a 5-day program where you often skip workouts.
+        Not what you'd like to do. What you're sure you can sustain for the next three months, even
+        through your most chaotic and stressful periods.
       </p>
-      <div className="mt-6 space-y-2">
-        {options.map(o => (
-          <button key={o.n} onClick={() => onPick(o.n)}
-            className="w-full text-left p-5 rounded-xl border border-stone-200 hover:border-orange-500 hover:bg-orange-50 transition-colors">
-            <div className="font-semibold text-stone-900">{o.label}</div>
-            <div className="text-xs text-stone-500 mt-0.5">{o.note}</div>
-          </button>
+      <p className="mt-3 text-stone-600 text-sm leading-relaxed">
+        Every option here can build muscle. Training more often doesn't automatically mean better
+        results. It mainly gives us more room to distribute your weekly training across multiple
+        sessions, prioritize more muscle groups, and keep individual workouts shorter.
+      </p>
+      <p className="mt-3 text-stone-600 text-sm leading-relaxed">
+        Two or three days is enough. Five days can be better if you can consistently do five. But a
+        3-day program you stick to consistently beats a 5-day program where you often skip workouts.
+        So be realistic. Choose the number you can stick to.
+      </p>
+
+      <div className="mt-6 space-y-2.5">
+        {DAY_TIERS.map(t => (
+          <div key={t.n} className="rounded-xl border border-stone-200 overflow-hidden hover:border-orange-500 transition-colors">
+            <div onClick={() => onPick(t.n)} role="button" tabIndex={0}
+              onKeyDown={e => e.key === 'Enter' && onPick(t.n)}
+              className="px-5 py-4 cursor-pointer hover:bg-orange-50 transition-colors">
+              <div className="font-semibold text-stone-900">{t.label}</div>
+            </div>
+            <ProsConsDisclosure pros={t.pros} cons={t.cons}
+              open={open === t.n} onToggle={() => setOpen(open === t.n ? null : t.n)} />
+          </div>
         ))}
       </div>
     </Card>
@@ -1054,8 +1315,10 @@ function DaysScreen({onBack, onPick, step, total}){
 
 function SplitScreen({days, onBack, onPick, step, total}){
   const options = SKELETONS_BY_DAYS(days);
+  const [openCard, setOpenCard] = useState(null);
+
   return (
-    <Card className="max-w-xl">
+    <Card className="max-w-2xl">
       <BackButton onClick={onBack} />
       <StepBar current={step} total={total} />
       <Eyebrow>Structure</Eyebrow>
@@ -1064,16 +1327,26 @@ function SplitScreen({days, onBack, onPick, step, total}){
       </h2>
       <p className="mt-2 text-stone-600 text-sm leading-relaxed">
         {options.length > 1
-          ? "Both work at this frequency. Pick the one you'd rather run."
+          ? 'Every one of these works at this frequency. Each is a different set of compromises, so read what you gain and give up, then pick the one you would rather run.'
           : "At this frequency there's one structure worth running."}
       </p>
-      <div className="mt-6 space-y-2">
+
+      <div className="mt-6 space-y-2.5">
         {options.map(([id, s]) => (
-          <button key={id} onClick={() => onPick(id)}
-            className="w-full text-left p-5 rounded-xl border border-stone-200 hover:border-orange-500 hover:bg-orange-50 transition-colors">
-            <div className="font-semibold text-stone-900">{s.name}</div>
-            <div className="text-xs text-stone-500 mt-1 leading-relaxed">{s.blurb}</div>
-          </button>
+          <div key={id} className="rounded-xl border border-stone-200 overflow-hidden hover:border-orange-500 transition-colors">
+            <div onClick={() => onPick(id)} role="button" tabIndex={0}
+              onKeyDown={e => e.key === 'Enter' && onPick(id)}
+              className="px-5 py-4 cursor-pointer hover:bg-orange-50 transition-colors">
+              <div className="font-semibold text-stone-900">{s.name}</div>
+              {s.rotates && (
+                <div className="text-xs text-stone-500 mt-1">
+                  {`${s.days.length} workouts run in order, ${s.dayCount} sessions a week`}
+                </div>
+              )}
+            </div>
+            <ProsConsDisclosure pros={s.pros} cons={s.cons}
+              open={openCard === id} onToggle={() => setOpenCard(openCard === id ? null : id)} />
+          </div>
         ))}
       </div>
     </Card>
@@ -1138,9 +1411,12 @@ function SwapMenu({row, prog, di, ri, owned, onPick, onClose}){
   prog.days.forEach((d, dj) => d.rows.forEach((r, rj) => {
     if (r.exId && !(dj === di && rj === ri)) used.add(r.exId);
   }));
-  const pool = [...POOLS[pattern], ...(POOL_FALLBACK[pattern] ? POOLS[POOL_FALLBACK[pattern]] : [])];
-  const available = pool.filter(id => canEquip(id, owned));
-  const missing = pool.filter(id => !canEquip(id, owned));
+  const groups = swapPatterns(pattern);
+  const sections = groups.map(pat => {
+    const ids = POOLS[pat] || [];
+    return { pat, available: ids.filter(id => canEquip(id, owned)), missing: ids.filter(id => !canEquip(id, owned)) };
+  });
+  const missing = sections.flatMap(s => s.missing);
 
   const Option = ({id}) => {
     const equipped = canEquip(id, owned);
@@ -1171,14 +1447,27 @@ function SwapMenu({row, prog, di, ri, owned, onPick, onClose}){
         <div>
           <Eyebrow>{PATTERN_LABEL[pattern]}</Eyebrow>
           <h3 className="mt-1.5 text-lg font-bold text-stone-900">Choose your exercise</h3>
-          <p className="text-xs text-stone-500 mt-1">Any of these trains the same pattern. Pick what you'd rather do.</p>
+          <p className="text-xs text-stone-500 mt-1">
+            {groups.length > 1
+              ? 'These train the same area. Your sets, reps and rest update to match whatever you pick.'
+              : "Any of these trains the same pattern. Pick what you'd rather do."}
+          </p>
         </div>
         <button onClick={onClose} className="flex-shrink-0 w-8 h-8 rounded-full hover:bg-stone-100 flex items-center justify-center transition-colors">
           <X className="w-4 h-4 text-stone-500" />
         </button>
       </div>
       <div className="p-5 overflow-y-auto space-y-2">
-        {available.map(id => <Option key={id} id={id} />)}
+        {sections.map(s => (
+          <React.Fragment key={s.pat}>
+            {groups.length > 1 && s.available.length > 0 && (
+              <div className="pt-3 first:pt-0 text-xs font-semibold text-stone-400 uppercase tracking-wider">
+                {PATTERN_LABEL[s.pat]}
+              </div>
+            )}
+            {s.available.map(id => <Option key={id} id={id} />)}
+          </React.Fragment>
+        ))}
         {missing.length > 0 && (
           <>
             <div className="pt-3 text-xs font-semibold text-stone-400 uppercase tracking-wider">
@@ -1230,7 +1519,7 @@ const ExerciseRow = ({row, onSwap, detailed}) => {
   return (
     <div className="px-4 py-3.5">
       <div className="flex gap-3">
-        <ExerciseImage exId={row.exId} className="w-28 sm:w-36 flex-shrink-0" />
+        <ExerciseImage exId={row.exId} expandable className="w-28 sm:w-36 flex-shrink-0" />
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -1270,18 +1559,36 @@ const ExerciseRow = ({row, onSwap, detailed}) => {
   );
 };
 
-// A day of the program in execution view. Exercises run in the order listed.
-const DayBlock = ({day, detailed, onSwap}) => (
-  <div>
-    <div className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-2">{day.name}</div>
-    <div className="border border-stone-200 rounded-xl divide-y divide-stone-100 bg-white">
-      {day.rows.map((r, ri) => (
-        <ExerciseRow key={ri} row={r} detailed={detailed}
-          onSwap={onSwap && r.exId ? () => onSwap(ri) : null} />
-      ))}
+// A day of the program in execution view. Each day is its own card with a
+// numbered header, so days read as separate blocks when the page is scrolled
+// rather than blurring into one long list.
+const DayBlock = ({day, index, detailed, onSwap}) => {
+  const count = day.rows.filter(r => r.exId).length;
+  const optional = /optional/i.test(day.name || '');
+  return (
+    <div className="rounded-2xl border border-stone-200 overflow-hidden bg-white shadow-sm">
+      <div className="flex items-center gap-3 px-4 py-3 bg-stone-900">
+        {index != null && (
+          <div className="flex-shrink-0 w-7 h-7 rounded-full bg-white/15 flex items-center justify-center text-sm font-semibold text-white tabular-nums">
+            {index + 1}
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold text-white leading-tight truncate">{day.name}</div>
+          <div className="text-[11px] text-stone-300 mt-0.5">
+            {count} exercise{count === 1 ? '' : 's'}{optional ? ' · optional' : ''}
+          </div>
+        </div>
+      </div>
+      <div className="divide-y divide-stone-100">
+        {day.rows.map((r, ri) => (
+          <ExerciseRow key={ri} row={r} detailed={detailed}
+            onSwap={onSwap && r.exId ? () => onSwap(ri) : null} />
+        ))}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 // Matches PhysiquePlan's loading screen: a spinner, two lines, 2 seconds.
 const LoadingScreen = ({ message = 'Building your program...' }) => (
@@ -1444,7 +1751,21 @@ const MIN_SETS = 3, MAX_SETS = 15;
 const BODY_FILL = '#e7e5e4';      // silhouette, and the stroke between muscles
 const UNTRAINED_FILL = '#d1cdc9'; // present but under 3 sets
 
-function computeVolume(days){
+// A rotating split runs its workouts in sequence across the week instead of
+// mapping one workout to one session, so a week contains a fractional number of
+// each. Weekly volume is sessions-per-week over cycle-length, times the cycle
+// total: an A/B run three times a week is 1.5 of each day, an A/B/C/D run three
+// times a week is 0.75. Every non-rotating program returns 1 and is untouched.
+function weekFactor(prog){
+  if (!prog || !prog.rotates) return 1;
+  // cycleLength lets a caller state the rotation length directly, which the
+  // builder needs because its tracker appends a pseudo-day for the pool.
+  const cycle = prog.cycleLength || prog.days.filter(d => !isOptionalDay(d)).length;
+  if (!cycle) return 1;
+  return (prog.dayCount || cycle) / cycle;
+}
+
+function computeVolume(days, factor = 1){
   const total = {}, optional = {};
   for (const d of days) for (const row of d.rows){
     if (!row.exId) continue;
@@ -1452,8 +1773,8 @@ function computeVolume(days){
     const map = EXERCISE_MUSCLES[row.exId] || PATTERN_MUSCLES[row.slot.pattern] || {};
     const sets = row.sets != null ? row.sets : (SETS[row.slot.pattern] || 3);
     for (const [m, w] of Object.entries(map)){
-      total[m] = (total[m] || 0) + sets * w;
-      if (isOpt) optional[m] = (optional[m] || 0) + sets * w;
+      total[m] = (total[m] || 0) + sets * w * factor;
+      if (isOpt) optional[m] = (optional[m] || 0) + sets * w * factor;
     }
   }
   return { total, optional };
@@ -1469,11 +1790,14 @@ function fillFor(v){
 const ORDER = Object.keys(MUSCLE_LABEL);
 const round1 = v => Math.round((v || 0) * 10) / 10;
 
-function VolumeTracker({ prog, compact = false, wrapClass = 'mt-6',
-                         title = 'Weekly volume by muscle',
-                         subtitle = "How your week's sets land across the body." }){
+function VolumeTracker({ prog, compact = false, wrapClass = 'mt-6', title, subtitle }){
+  const rotates = weekFactor(prog) !== 1;
+  title = title || (rotates ? 'Average weekly volume by muscle' : 'Weekly volume by muscle');
+  subtitle = subtitle || (rotates
+    ? 'Averaged over the rotation, since no single week matches it exactly.'
+    : "How your week's sets land across the body.");
   const [hover, setHover] = useState(null);
-  const { total, optional } = useMemo(() => computeVolume(prog.days), [prog]);
+  const { total, optional } = useMemo(() => computeVolume(prog.days, weekFactor(prog)), [prog]);
   const rows = ORDER.map(k => ({ k, v: round1(total[k]), o: round1(optional[k]) }))
                     .sort((a, b) => b.v - a.v);
 
@@ -1576,6 +1900,11 @@ function VolumeTracker({ prog, compact = false, wrapClass = 'mt-6',
           A muscle under 3 sets a week stays grey. Colour deepens to 15 sets.
           Hatched bar segments come from optional workouts.
         </p>
+        <p className="text-xs text-stone-500 leading-relaxed mt-2">
+          Not every muscle gets the same amount, and that's deliberate. Sessions are finite, so the
+          muscles that shape a physique are prioritised and the rest get what's left. Calves,
+          forearms and adductors are usually the ones that run low.
+        </p>
       </div>}
     </div>
   );
@@ -1631,12 +1960,15 @@ function programStats(prog){
     }
   }
 
+  const cycleLength = core.length || prog.days.length;
+  const factor = weekFactor(prog);
   return {
-    dayCount: core.length || prog.days.length,
+    dayCount: factor === 1 ? cycleLength : (prog.dayCount || cycleLength),
+    cycleLength, rotates: factor !== 1,
     optionalCount: optional.length,
     exMin: Math.min(...ex), exMax: Math.max(...ex),
     minMin: round5(Math.min(...mins)), minMax: round5(Math.max(...mins)),
-    weeklySets: s.reduce((a, x) => a + x.sets, 0),
+    weeklySets: round1(s.reduce((a, x) => a + x.sets, 0) * factor),
     models,
     exerciseCount, rirCaution,
   };
@@ -1660,8 +1992,18 @@ function ProgramGlance({prog}){
           label={s.optionalCount ? 'Sessions a week, plus optional' : 'Sessions a week'} />
         <Stat value={range(s.exMin, s.exMax)} label="Exercises a session" />
         <Stat value={range(s.minMin, s.minMax)} label="Minutes a session" />
-        <Stat value={s.weeklySets} label="Working sets a week" />
+        <Stat value={s.weeklySets} label={s.rotates ? 'Working sets a week, average' : 'Working sets a week'} />
       </div>
+
+      {s.rotates && (
+        <p className="mt-2.5 text-xs text-stone-500 leading-relaxed">
+          These {s.cycleLength} workouts run in order rather than on fixed days. You train{' '}
+          {s.dayCount} times a week and take whichever comes next, so the cycle repeats every{' '}
+          {s.cycleLength === s.dayCount ? 'week' : `${round1(s.cycleLength / s.dayCount)} weeks`}.
+          Set and volume figures are averages across the rotation, because no single week matches
+          them exactly.
+        </p>
+      )}
 
       <p className="mt-2.5 text-xs text-stone-500 leading-relaxed">
         Session length assumes you take the prescribed rest. It counts the rest between every set as
@@ -1993,7 +2335,8 @@ let UID = 0;
 const newUid = () => `x${++UID}`;
 
 const emptyBuilder = (n = 4) => ({
-  dayCount: n,
+  dayCount: n,        // workouts in the rotation, one column each
+  freq: n,            // sessions a week; differs only for a rotating split
   names: Array.from({length:n}, (_,i) => `Workout ${i+1}`),
   days:  Array.from({length:n}, () => []),
   pool:  [],
@@ -2064,7 +2407,7 @@ const BuilderField = ({label, value, edited, onChange, onClear, numeric, options
   );
 };
 
-function BuilderCard({row, held, onHold, onDragStart, onDragEnd, onDropOn, onEdit, onClear, onUnplace}){
+function BuilderCard({row, held, onHold, onDragStart, onDragEnd, onDropOn, onEdit, onClear, onUnplace, onToggleOpt}){
   const ov = row.ov || {};
   const edits = Object.keys(ov).length;
   return (
@@ -2072,14 +2415,19 @@ function BuilderCard({row, held, onHold, onDragStart, onDragEnd, onDropOn, onEdi
       onDragOver={e => e.preventDefault()}
       onDrop={e => { e.preventDefault(); e.stopPropagation(); onDropOn(); }}
       onClick={e => { e.stopPropagation(); onHold(); }}
-      className={`rounded-xl border bg-white transition-colors ${
+      className={`rounded-xl border bg-white transition-colors ${row.opt ? 'border-dashed' : ''} ${
         held ? 'border-orange-500 ring-2 ring-orange-100' : 'border-stone-200 hover:border-stone-300'}`}>
       <div draggable onDragStart={onDragStart} onDragEnd={onDragEnd}
         className="flex items-start gap-2 px-3 py-2.5 cursor-grab active:cursor-grabbing">
         <GripVertical className="w-4 h-4 text-stone-300 flex-shrink-0 mt-0.5" />
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-medium text-stone-900 leading-snug">{EXERCISES[row.exId][0]}</div>
-          <div className="text-[11px] text-stone-500 mt-0.5">{PATTERN_LABEL[row.slot.pattern]}</div>
+          <div className={`text-xs font-medium leading-snug ${row.opt ? 'text-stone-500' : 'text-stone-900'}`}>
+            {EXERCISES[row.exId][0]}
+          </div>
+          <div className="text-[11px] text-stone-500 mt-0.5">
+            {PATTERN_LABEL[row.slot.pattern]}
+            {row.opt && <span className="text-stone-400"> · optional</span>}
+          </div>
         </div>
         <button onClick={e => { e.stopPropagation(); onUnplace(); }} title="Send back to the pool"
           className="flex-shrink-0 w-6 h-6 rounded-full hover:bg-stone-100 flex items-center justify-center">
@@ -2103,14 +2451,19 @@ function BuilderCard({row, held, onHold, onDragStart, onDragEnd, onDropOn, onEdi
         </div>
       </div>
 
-      {edits > 0 && (
-        <div className="px-3 pb-2.5 -mt-1">
+      <div className="px-3 pb-2.5 -mt-1 flex items-center gap-3">
+        <button onClick={e => { e.stopPropagation(); onToggleOpt(); }}
+          className={`text-[11px] transition-colors ${
+            row.opt ? 'text-orange-600 hover:text-orange-700' : 'text-stone-500 hover:text-stone-900'}`}>
+          {row.opt ? 'Optional' : 'Make optional'}
+        </button>
+        {edits > 0 && (
           <button onClick={e => { e.stopPropagation(); onClear(null); }}
             className="text-[11px] text-stone-500 hover:text-stone-900 flex items-center gap-1">
             <RotateCcw className="w-3 h-3" /> Reset all fields
           </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
@@ -2125,10 +2478,13 @@ function SplitBuilderScreen({state, setState, onBack, onFinish}){
 
   const setDayCount = n => {
     if (n === b.dayCount) return;
+    // Sessions a week follows the column count unless it has been set apart
+    // from it deliberately, which is what makes a split a rotation.
+    const freq = b.freq === b.dayCount ? n : b.freq;
     if (n > b.dayCount){
       const add = n - b.dayCount;
       update({
-        dayCount: n,
+        dayCount: n, freq,
         names: [...b.names, ...Array.from({length:add}, (_,i) => `Workout ${b.dayCount + i + 1}`)],
         days:  [...b.days,  ...Array.from({length:add}, () => [])],
       });
@@ -2136,7 +2492,7 @@ function SplitBuilderScreen({state, setState, onBack, onFinish}){
       // Anything in a workout that no longer exists goes back to the pool
       // rather than being thrown away.
       const dropped = b.days.slice(n).flat();
-      update({ dayCount:n, names:b.names.slice(0,n), days:b.days.slice(0,n), pool:[...b.pool, ...dropped] });
+      update({ dayCount:n, freq, names:b.names.slice(0,n), days:b.days.slice(0,n), pool:[...b.pool, ...dropped] });
     }
   };
 
@@ -2178,6 +2534,10 @@ function SplitBuilderScreen({state, setState, onBack, onFinish}){
     const apply = list => list.map(i => i.uid !== uid ? i : { ...i, ov: {...(i.ov||{}), [key]: value} });
     update({ pool: apply(b.pool), days: b.days.map(apply) });
   };
+  const toggleOpt = uid => {
+    const apply = list => list.map(i => i.uid !== uid ? i : { ...i, opt: !i.opt });
+    update({ pool: apply(b.pool), days: b.days.map(apply) });
+  };
   const clearField = (uid, key) => {
     const apply = list => list.map(i => i.uid !== uid ? i
       : { ...i, ov: key == null ? {} : omitKey(i.ov || {}, key) });
@@ -2189,6 +2549,9 @@ function SplitBuilderScreen({state, setState, onBack, onFinish}){
     setHeld(held === uid ? null : uid);
   };
 
+  const freq = b.freq || b.dayCount;
+  const rotates = freq !== b.dayCount;
+
   const dayRows = useMemo(() => b.days.map(resolveItems), [b.days]);
   const poolRows = useMemo(() => resolveItems(b.pool), [b.pool]);
 
@@ -2199,6 +2562,11 @@ function SplitBuilderScreen({state, setState, onBack, onFinish}){
       ...dayRows.map((rows, i) => ({ name: b.names[i] || '', rows })),
       { name:'Unassigned', rows: poolRows },
     ],
+    // The pseudo-day for the pool is not part of the rotation, so the cycle
+    // length is counted from the real columns.
+    dayCount: rotates ? freq : undefined,
+    rotates,
+    cycleLength: b.dayCount,
   };
 
   const totalExercises = poolRows.length + dayRows.reduce((n, r) => n + r.length, 0);
@@ -2230,7 +2598,7 @@ function SplitBuilderScreen({state, setState, onBack, onFinish}){
         <div className="mt-8 grid lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] gap-8">
           {/* left: how many workouts, then the movement patterns */}
           <div>
-            <div className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Workouts a week</div>
+            <div className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Workouts in the rotation</div>
             <div className="mt-2 grid grid-cols-7 gap-1.5">
               {DAY_OPTIONS.map(n => (
                 <button key={n} onClick={() => setDayCount(n)}
@@ -2241,6 +2609,25 @@ function SplitBuilderScreen({state, setState, onBack, onFinish}){
                 </button>
               ))}
             </div>
+
+            <div className="mt-5 text-xs font-semibold text-stone-400 uppercase tracking-wider">Sessions a week</div>
+            <div className="mt-2 grid grid-cols-7 gap-1.5">
+              {DAY_OPTIONS.map(n => (
+                <button key={n} onClick={() => update({ freq:n })}
+                  className={`py-2 rounded-lg text-sm font-medium border transition-colors ${
+                    n === freq ? 'bg-stone-900 text-white border-stone-900'
+                               : 'bg-white text-stone-700 border-stone-200 hover:border-stone-400'}`}>
+                  {n}
+                </button>
+              ))}
+            </div>
+            {rotates && (
+              <p className="mt-2 text-[11px] text-stone-500 leading-relaxed">
+                {b.dayCount} workouts run in order at {freq} sessions a week, so each one comes up{' '}
+                {round1(freq / b.dayCount)} times a week on average and the cycle repeats every{' '}
+                {round1(b.dayCount / freq)} weeks. Volume below is the average.
+              </p>
+            )}
 
             <div className="mt-7 text-xs font-semibold text-stone-400 uppercase tracking-wider">Movements</div>
             <div className="mt-2 border border-stone-200 rounded-xl divide-y divide-stone-100 overflow-hidden bg-white">
@@ -2339,6 +2726,7 @@ function SplitBuilderScreen({state, setState, onBack, onFinish}){
                       onDropOn={() => { if (dragUid) moveTo(dragUid, di, r.uid); }}
                       onEdit={(k,v) => editField(r.uid, k, v)}
                       onClear={k => clearField(r.uid, k)}
+                      onToggleOpt={() => toggleOpt(r.uid)}
                       onUnplace={() => moveTo(r.uid, null)} />
                   ))}
                 </div>
@@ -2417,9 +2805,9 @@ function ProgramScreen({prog, seq, owned, onSwapAt, onBack, onIssue, onRestart})
             you can.
           </p>
 
-          <div className="mt-6 space-y-6">
+          <div className="mt-6 space-y-8">
             {prog.days.map((d, di) => (
-              <DayBlock key={di} day={d} detailed onSwap={ri => setSwap({di, ri})} />
+              <DayBlock key={di} day={d} index={di} detailed onSwap={ri => setSwap({di, ri})} />
             ))}
           </div>
 
@@ -2549,8 +2937,11 @@ export default function App(){
   // A swap is a direct per-slot override. Ranges recompute for that day,
   // since the new exercise may carry different dumbbell / single-arm flags.
   const swapAt = (di, ri, newExId) => {
+    // A swap can cross a pool boundary now, so the slot's pattern follows the
+    // exercise rather than staying with what the skeleton asked for.
     const days2 = prog.days.map((d, i) => i !== di ? d : {
-      ...d, rows: d.rows.map((r, j) => j !== ri ? r : { ...r, exId:newExId })
+      ...d, rows: d.rows.map((r, j) => j !== ri ? r
+        : { ...r, exId:newExId, slot:{ ...r.slot, pattern: PATTERN_OF[newExId] || r.slot.pattern } })
     });
     const counters = {};
     days2[di] = { ...days2[di], rows: days2[di].rows.map(r => {
