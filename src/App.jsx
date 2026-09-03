@@ -846,6 +846,23 @@ const PATTERN_ORDER = [
 const PAT_TO_TOKEN = {}; const TOKEN_TO_PAT = {};
 PATTERN_ORDER.forEach((p,i)=>{ PAT_TO_TOKEN[p]=i.toString(36); TOKEN_TO_PAT[i.toString(36)]=p; });
 
+// The builder shows patterns in a reader-friendly order, which is NOT the
+// frozen token order above. New patterns get appended to PATTERN_ORDER to keep
+// codes stable, but they can sit anywhere sensible in the list a coach sees.
+// Glute isolation reads best right after glute. Any pattern missing here falls
+// to the end, so forgetting to place a future one is harmless.
+const PATTERN_DISPLAY_ORDER = (() => {
+  const desired = [
+    'SQUAT','HINGE','GLUTE','GLUTE_ISO','LEG_EXT','LEG_CURL','CALF',
+    'INCLINE_PRESS','FLAT_PRESS','CHEST_ISO','VERT_PUSH','HORIZ_PULL','VERT_PULL',
+    'TRAPS','SIDE_DELT','REAR_DELT','TRI_OH','TRI_PUSHDOWN','BICEPS','ABS',
+    'NECK_CURL','NECK_EXT',
+  ];
+  const seen = new Set(desired);
+  return [...desired.filter(p => PATTERN_ORDER.includes(p)),
+          ...PATTERN_ORDER.filter(p => !seen.has(p))];
+})();
+
 // Day names and override fields are free text, so the delimiters are stripped
 // out of them on the way in rather than escaped.
 const cleanField = s => String(s == null ? '' : s).replace(/[|;~,:]/g, ' ').replace(/\s+/g,' ').trim();
@@ -2701,7 +2718,7 @@ function SplitBuilderScreen({state, setState, onBack, onFinish}){
 
             <div className="mt-7 text-xs font-semibold text-stone-400 uppercase tracking-wider">Movements</div>
             <div className="mt-2 border border-stone-200 rounded-xl divide-y divide-stone-100 overflow-hidden bg-white">
-              {PATTERN_ORDER.map(p => {
+              {PATTERN_DISPLAY_ORDER.map(p => {
                 const c = patternCount(p);
                 return (
                   <button key={p} onClick={() => setPicker(p)}
