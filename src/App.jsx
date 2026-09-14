@@ -747,6 +747,17 @@ const TOKEN_ORDER = [
   'TRI_PUSHDOWN','TRI_PUSHDOWN_1A','VIKING_PRESS',
   'KICKBACK_CABLE','KICKBACK_MACH','HIP_ABDUCTION','HIP_ADDUCTION','PULLUP_ASSISTED','PULLUP_BW',
   'KICKBACK_MED_CABLE',
+  // The 23 tokens below were never frozen in the original list — they were
+  // being auto-appended alphabetically at runtime, which is NOT stable: adding
+  // any new exercise whose id sorts earlier shifts every one of these and
+  // silently reassigns their tokens in already-issued codes. Freezing them
+  // here, in the exact order they were previously auto-appended in, is a bug
+  // fix that makes existing OP1 codes decode correctly again. Never reorder.
+  'BENCH_SMITH','CALF_STANDING_CABLE','CALF_STANDING_MACH','CHEST_FLY_CABLE_STAND','CHEST_FLY_MACH_STACK',
+  'CHEST_PRESS_FLAT_MACH','CHEST_PRESS_NEUTRAL_MACH','DRAGON_FLAG_ECC','INC_PRESS_MACH_STACK','INC_PRESS_SMITH',
+  'LEG_CURL_KNEELING','NECK_CURL_INCLINE','NECK_CURL_SEATED_CABLE','NECK_EXT_INCLINE','NECK_EXT_SEATED_CABLE',
+  'PULLDOWN_MACH_STACK','ROW_CABLE_CS','ROW_CS_MACH_STACK','ROW_DB_CS','SHLDR_PRESS_MACH_STACK',
+  'SHRUG_BB','SHRUG_KELSO','SISSY_SQUAT',
 ];
 // Anything in the library but not yet in TOKEN_ORDER is appended automatically,
 // which keeps existing tokens stable while new exercises still encode.
