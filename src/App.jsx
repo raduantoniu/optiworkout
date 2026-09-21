@@ -48,6 +48,7 @@ const EQ = {
   HIP_ADDUCTION_M:'hip adduction machine', ASSISTED_PULLUP_M:'assisted pull-up machine',
   PREACHER_M:'preacher curl machine', PREACHER_BENCH:'preacher bench',
   TRI_PUSHDOWN_M:'triceps pushdown machine',
+  ANKLE_HARNESS:'ankle harness', DIP_STATION:'dip station',
 };
 
 // =====================================================
@@ -88,17 +89,22 @@ const EXERCISES = {
   HIP_ADDUCTION:['Hip Adduction (Machine)',[EQ.HIP_ADDUCTION_M]],
   // LEG_EXT
   LEG_EXT:['Leg Extension',[EQ.LEG_EXT_M]],
+  LEG_EXT_1L:['Single-Leg Leg Extension',[EQ.LEG_EXT_M],{sa:true}],
   REVERSE_NORDIC:['Band-Assisted Reverse Nordic Curl',[EQ.BANDS],{lastResort:true}],
   SISSY_SQUAT:['Sissy Squat',[]],
   // LEG_CURL
   LEG_CURL_SEATED:['Seated Leg Curl',[EQ.LEG_CURL_SEATED_M]],
   LEG_CURL_LYING:['Lying Leg Curl',[EQ.LEG_CURL_LYING_M]],
   LEG_CURL_KNEELING:['Kneeling Leg Curl (Machine)',[EQ.LEG_CURL_KNEELING_M]],
+  LEG_CURL_SEATED_1L:['Single-Leg Seated Leg Curl',[EQ.LEG_CURL_SEATED_M],{sa:true}],
+  LEG_CURL_LYING_1L:['Single-Leg Lying Leg Curl',[EQ.LEG_CURL_LYING_M],{sa:true}],
+  CABLE_LYING_LEG_CURL:['Lying Leg Curl (Cable)',[EQ.CABLE,EQ.ANKLE_HARNESS]],
   NORDIC_BAND:['Band-Assisted Nordic Curl',[EQ.BANDS],{lastResort:true}],
   // CALF
   CALF_STRAIGHT_M:['Seated Straight-Leg Calf Raise (Machine)',[EQ.CALF_SEATED_STRAIGHT_M]],
   CALF_STANDING_MACH:['Standing Calf Raise (Machine)',[EQ.CALF_STANDING_M]],
   CALF_STANDING_CABLE:['Standing Calf Raise (Cable)',[EQ.CABLE,EQ.STEPPER]],
+  CALF_LEG_PRESS:['Calf Raise (Leg Press)',[EQ.LEG_PRESS_M]],
   CALF_STRAIGHT_SM:['Straight Leg Calf Raise (Smith)',[EQ.SMITH,EQ.STEPPER]],
   CALF_STRAIGHT_DB:['Straight Leg Calf Raise (DB)',[EQ.DUMBBELLS,EQ.STEPPER],{db:true}],
   CALF_SEATED:['Seated Calf Raise',[EQ.CALF_SEATED_M]],
@@ -118,6 +124,8 @@ const EXERCISES = {
   CHEST_PRESS_NEUTRAL_MACH:['Chest Press (Machine, Neutral Grip)',[EQ.CHEST_PRESS_M]],
   BENCH_SMITH:['Flat Bench Press (Smith Machine)',[EQ.SMITH,EQ.FLAT_BENCH]],
   BENCH_DB_FLAT:['Flat Dumbbell Bench Press',[EQ.DUMBBELLS,EQ.FLAT_BENCH],{primary:true,db:true}],
+  DIP_WEIGHTED:['Weighted Dip',[EQ.DIP_STATION,EQ.WEIGHT_BELT],{primary:true}],
+  DIP_BW:['Bodyweight Dip',[EQ.DIP_STATION],{amrap:true}],
   // CHEST_ISO
   DB_FLY_PRESS:['DB Fly-Press',[EQ.DUMBBELLS,EQ.FLAT_BENCH],{db:true}],
   DB_FLY_PRESS_INC:['Incline DB Fly-Press',[EQ.DUMBBELLS,EQ.ADJ_BENCH],{db:true}],
@@ -224,11 +232,11 @@ const POOLS = {
   HINGE:['RDL_LEVER','RDL_TRAP','RDL_LANDMINE','RDL_SMITH','RDL_BB','BACK_EXT_WTD','RDL_CABLE','RDL_DB'],
   GLUTE:['HIP_THRUST_BB','HIP_THRUST_MACH','HIP_THRUST_SMITH','HIP_THRUST_BENCH','HIP_THRUST_DB_1L'],
   GLUTE_ISO:['KICKBACK_CABLE','KICKBACK_MED_CABLE','KICKBACK_MACH','HIP_ABDUCTION','HIP_ADDUCTION'],
-  LEG_EXT:['LEG_EXT','SISSY_SQUAT','REVERSE_NORDIC'],
-  LEG_CURL:['LEG_CURL_SEATED','LEG_CURL_LYING','LEG_CURL_KNEELING','NORDIC_BAND'],
-  CALF:['CALF_STRAIGHT_M','CALF_STANDING_MACH','CALF_STRAIGHT_SM','CALF_STANDING_CABLE','CALF_STRAIGHT_DB','CALF_SEATED','CALF_SL_BW'],
+  LEG_EXT:['LEG_EXT','LEG_EXT_1L','SISSY_SQUAT','REVERSE_NORDIC'],
+  LEG_CURL:['LEG_CURL_SEATED','LEG_CURL_LYING','LEG_CURL_KNEELING','LEG_CURL_SEATED_1L','LEG_CURL_LYING_1L','CABLE_LYING_LEG_CURL','NORDIC_BAND'],
+  CALF:['CALF_STRAIGHT_M','CALF_STANDING_MACH','CALF_STRAIGHT_SM','CALF_STANDING_CABLE','CALF_LEG_PRESS','CALF_STRAIGHT_DB','CALF_SEATED','CALF_SL_BW'],
   INCLINE_PRESS:['INC_BB_30','INC_BB_15','INC_DB_30','INC_DB_15','INC_PRESS_MACH','INC_PRESS_MACH_STACK','INC_PRESS_SMITH'],
-  FLAT_PRESS:['BENCH_BB','CHEST_PRESS_MACH','CHEST_PRESS_FLAT_MACH','CHEST_PRESS_NEUTRAL_MACH','BENCH_SMITH','BENCH_DB_FLAT'],
+  FLAT_PRESS:['BENCH_BB','CHEST_PRESS_MACH','CHEST_PRESS_FLAT_MACH','CHEST_PRESS_NEUTRAL_MACH','BENCH_SMITH','BENCH_DB_FLAT','DIP_WEIGHTED','DIP_BW'],
   CHEST_ISO:['DB_FLY_PRESS','DB_FLY_PRESS_INC','PEC_DECK','CHEST_FLY_MACH','CHEST_FLY_MACH_STACK','CHEST_FLY_CABLE','CHEST_FLY_CABLE_STAND'],
   VERT_PUSH:['SHLDR_PRESS_DB','VIKING_PRESS','OHP_BB','SHLDR_PRESS_MACH','SHLDR_PRESS_MACH_STACK','SHLDR_PRESS_SMITH','SHLDR_PRESS_DB_1A','LANDMINE_PRESS_SEATED','LANDMINE_PRESS_STANDING','LANDMINE_PRESS_KNEELING_1A'],
   HORIZ_PULL:['ROW_TBAR_CS','ROW_CS_MACH','ROW_CS_MACH_STACK','ROW_SEAL','ROW_CABLE_SEATED','ROW_CABLE_CS_1A','ROW_CABLE_CS','ROW_PENDLAY','ROW_DB_CS','ROW_DB_1A','ROW_INVERTED'],
@@ -758,10 +766,36 @@ const TOKEN_ORDER = [
   'LEG_CURL_KNEELING','NECK_CURL_INCLINE','NECK_CURL_SEATED_CABLE','NECK_EXT_INCLINE','NECK_EXT_SEATED_CABLE',
   'PULLDOWN_MACH_STACK','ROW_CABLE_CS','ROW_CS_MACH_STACK','ROW_DB_CS','SHLDR_PRESS_MACH_STACK',
   'SHRUG_BB','SHRUG_KELSO','SISSY_SQUAT',
+  // Last session's 9 additions were left auto-appending instead of being frozen
+  // here (the same latent bug, one level down). This file is live, so codes may
+  // already encode them at these positions. Frozen here in their exact live
+  // auto-append order so those codes keep decoding correctly. Never reorder.
+  'CURL_CABLE_STANDING','CURL_CONCENTRATION_DB','CURL_PREACHER_EZ','CURL_PREACHER_MACH','CURL_ZOTTMAN_PREACHER_1A',
+  'LANDMINE_PRESS_KNEELING_1A','LANDMINE_PRESS_SEATED','LANDMINE_PRESS_STANDING','TRI_PUSHDOWN_MACH',
+  // This session's additions. Appended here at the same time they were added to
+  // EXERCISES, per the standing rule: every new exercise is frozen on arrival.
+  'LEG_EXT_1L','LEG_CURL_SEATED_1L','LEG_CURL_LYING_1L','CABLE_LYING_LEG_CURL','CALF_LEG_PRESS',
+  'DIP_WEIGHTED','DIP_BW',
 ];
-// Anything in the library but not yet in TOKEN_ORDER is appended automatically,
-// which keeps existing tokens stable while new exercises still encode.
-const ID_LIST = [...TOKEN_ORDER, ...Object.keys(EXERCISES).filter(id => !TOKEN_ORDER.includes(id)).sort()];
+// TOKEN LIST INTEGRITY — fail loud, never guess.
+// An OP1 code stores each exercise as its INDEX in this list, so the list has to
+// be append-only and hold every exercise exactly once. This used to auto-append
+// anything missing from TOKEN_ORDER in sorted order; adding one new exercise
+// could reshuffle that tail and silently reassign tokens in codes already
+// issued. We no longer paper over it: a missing or duplicated exercise throws
+// the moment the app loads, so it surfaces in testing instead of corrupting
+// live codes. The fix on seeing this error is to append the listed ids to the
+// END of TOKEN_ORDER — never to reorder what is already there.
+const _unfrozen = Object.keys(EXERCISES).filter(id => !TOKEN_ORDER.includes(id));
+const _dupes = [...new Set(TOKEN_ORDER.filter((id, i) => TOKEN_ORDER.indexOf(id) !== i))];
+if (_unfrozen.length || _dupes.length) {
+  const parts = [];
+  if (_unfrozen.length) parts.push(`${_unfrozen.length} exercise(s) missing from TOKEN_ORDER: ${_unfrozen.join(', ')} — append to the END, never reorder.`);
+  if (_dupes.length) parts.push(`duplicate TOKEN_ORDER entries: ${_dupes.join(', ')}.`);
+  throw new Error('OP1 token list is invalid. ' + parts.join(' '));
+}
+// Every exercise is frozen, so the token order IS the list — no fallback.
+const ID_LIST = [...TOKEN_ORDER];
 const ID_TO_TOKEN = {}; const TOKEN_TO_ID = {};
 ID_LIST.forEach((id,i)=>{ ID_TO_TOKEN[id]=i.toString(36); TOKEN_TO_ID[i.toString(36)]=id; });
 
@@ -1015,7 +1049,7 @@ const fmtH = (cm, units) => {
 const EQUIPMENT_GROUPS = [
   { label:'Free weights', items:[EQ.BARBELL,EQ.DUMBBELLS,EQ.EZ_BAR,EQ.TRAP_BAR,EQ.PLATE] },
   { label:'Racks & benches', items:[EQ.RACK,EQ.FLAT_BENCH,EQ.ADJ_BENCH,EQ.INCLINE_STATION,EQ.SMITH,EQ.LANDMINE,EQ.LEVER_ARMS,EQ.PREACHER_BENCH] },
-  { label:'Cables & bars', items:[EQ.CABLE,EQ.LAT_PULLDOWN,EQ.PULLUP_BAR,EQ.NEUTRAL_BARS,EQ.WEIGHT_BELT,EQ.BANDS] },
+  { label:'Cables & bars', items:[EQ.CABLE,EQ.LAT_PULLDOWN,EQ.PULLUP_BAR,EQ.NEUTRAL_BARS,EQ.DIP_STATION,EQ.WEIGHT_BELT,EQ.ANKLE_HARNESS,EQ.BANDS] },
   { label:'Leg machines', items:[EQ.HACK,EQ.PENDULUM,EQ.LEG_PRESS_M,EQ.LEG_EXT_M,EQ.LEG_CURL_SEATED_M,EQ.LEG_CURL_LYING_M,EQ.LEG_CURL_KNEELING_M,EQ.CALF_STANDING_M,EQ.CALF_SEATED_M,EQ.CALF_SEATED_STRAIGHT_M,EQ.HIP_THRUST_M,EQ.HIP_THRUST_STATION,EQ.KICKBACK_M,EQ.HIP_ABDUCTION_M,EQ.HIP_ADDUCTION_M] },
   { label:'Upper body machines', items:[EQ.CHEST_PRESS_M,EQ.INCLINE_PRESS_M,EQ.PEC_DECK,EQ.CHEST_FLY_M,EQ.SHOULDER_PRESS_M,EQ.LAT_RAISE_M,EQ.REAR_DELT_M,EQ.ROW_CS_M,EQ.TBAR_M,EQ.PULLDOWN_M,EQ.SHRUG_M,EQ.VIKING,EQ.SEAL_BENCH,EQ.PREACHER_M,EQ.TRI_PUSHDOWN_M] },
   { label:'Other', items:[EQ.STEPPER,EQ.ROMAN_CHAIR,EQ.CRUNCH_M,EQ.CAPTAINS_CHAIR,EQ.HEAD_HARNESS] },
@@ -1038,6 +1072,7 @@ const PRESET_MID = new Set([
   EQ.LEG_CURL_SEATED_M,EQ.CALF_STANDING_M,EQ.CALF_SEATED_M,
   EQ.CHEST_PRESS_M,EQ.PEC_DECK,EQ.SHOULDER_PRESS_M,EQ.LAT_RAISE_M,EQ.REAR_DELT_M,
   EQ.ROW_CS_M,EQ.CRUNCH_M,EQ.ROMAN_CHAIR,EQ.CAPTAINS_CHAIR,EQ.STEPPER,EQ.PLATE,EQ.BANDS,
+  EQ.DIP_STATION,EQ.ANKLE_HARNESS,
 ]);
 // No dedicated flat bench station — an adjustable bench set flat covers
 // everything, and SATISFIED_BY makes the swap for us.
