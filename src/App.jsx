@@ -28,7 +28,7 @@ const EQ = {
   CABLE:'cable station', LAT_PULLDOWN:'lat pulldown (cable)',
   PULLUP_BAR:'pull-up bar', NEUTRAL_BARS:'neutral grip bars', WEIGHT_BELT:'weight belt',
   SMITH:'smith machine', LEVER_ARMS:'lever arms', LANDMINE:'landmine', BANDS:'resistance bands',
-  HACK:'hack squat machine', PENDULUM:'pendulum squat machine', LEG_PRESS_M:'leg press machine',
+  HACK:'hack squat machine', PENDULUM:'pendulum squat machine', POWER_SQUAT_M:'power squat machine', LEG_PRESS_M:'leg press machine',
   LEG_EXT_M:'leg extension machine', LEG_CURL_SEATED_M:'seated leg curl machine',
   LEG_CURL_LYING_M:'lying leg curl machine',
   LEG_CURL_KNEELING_M:'kneeling leg curl machine',
@@ -61,6 +61,7 @@ const EXERCISES = {
   // SQUAT
   HACK_SQUAT:['Hack Squat',[EQ.HACK],{primary:true}],
   PENDULUM_SQUAT:['Pendulum Squat',[EQ.PENDULUM],{primary:true}],
+  POWER_SQUAT:['Power Squat (Machine)',[EQ.POWER_SQUAT_M],{primary:true}],
   LEG_PRESS:['Leg Press',[EQ.LEG_PRESS_M],{primary:true}],
   SQUAT_SMITH:['Smith Machine Squat',[EQ.SMITH],{primary:true}],
   SQUAT_BACK:['Back Squat',[EQ.BARBELL,EQ.RACK],{primary:true}],
@@ -228,7 +229,7 @@ const EXERCISES = {
 
 // Pools in PREFERENCE ORDER — first equippable, un-vetoed entry wins.
 const POOLS = {
-  SQUAT:['HACK_SQUAT','PENDULUM_SQUAT','LEG_PRESS','SQUAT_SMITH','SQUAT_BACK','SQUAT_FRONT','SPLIT_SQUAT_BULG'],
+  SQUAT:['HACK_SQUAT','PENDULUM_SQUAT','POWER_SQUAT','LEG_PRESS','SQUAT_SMITH','SQUAT_BACK','SQUAT_FRONT','SPLIT_SQUAT_BULG'],
   HINGE:['RDL_LEVER','RDL_TRAP','RDL_LANDMINE','RDL_SMITH','RDL_BB','BACK_EXT_WTD','RDL_CABLE','RDL_DB'],
   GLUTE:['HIP_THRUST_BB','HIP_THRUST_MACH','HIP_THRUST_SMITH','HIP_THRUST_BENCH','HIP_THRUST_DB_1L'],
   GLUTE_ISO:['KICKBACK_CABLE','KICKBACK_MED_CABLE','KICKBACK_MACH','HIP_ABDUCTION','HIP_ADDUCTION'],
@@ -776,6 +777,7 @@ const TOKEN_ORDER = [
   // EXERCISES, per the standing rule: every new exercise is frozen on arrival.
   'LEG_EXT_1L','LEG_CURL_SEATED_1L','LEG_CURL_LYING_1L','CABLE_LYING_LEG_CURL','CALF_LEG_PRESS',
   'DIP_WEIGHTED','DIP_BW',
+  'POWER_SQUAT',
 ];
 // TOKEN LIST INTEGRITY — fail loud, never guess.
 // An OP1 code stores each exercise as its INDEX in this list, so the list has to
@@ -1050,7 +1052,7 @@ const EQUIPMENT_GROUPS = [
   { label:'Free weights', items:[EQ.BARBELL,EQ.DUMBBELLS,EQ.EZ_BAR,EQ.TRAP_BAR,EQ.PLATE] },
   { label:'Racks & benches', items:[EQ.RACK,EQ.FLAT_BENCH,EQ.ADJ_BENCH,EQ.INCLINE_STATION,EQ.SMITH,EQ.LANDMINE,EQ.LEVER_ARMS,EQ.PREACHER_BENCH] },
   { label:'Cables & bars', items:[EQ.CABLE,EQ.LAT_PULLDOWN,EQ.PULLUP_BAR,EQ.NEUTRAL_BARS,EQ.DIP_STATION,EQ.WEIGHT_BELT,EQ.ANKLE_HARNESS,EQ.BANDS] },
-  { label:'Leg machines', items:[EQ.HACK,EQ.PENDULUM,EQ.LEG_PRESS_M,EQ.LEG_EXT_M,EQ.LEG_CURL_SEATED_M,EQ.LEG_CURL_LYING_M,EQ.LEG_CURL_KNEELING_M,EQ.CALF_STANDING_M,EQ.CALF_SEATED_M,EQ.CALF_SEATED_STRAIGHT_M,EQ.HIP_THRUST_M,EQ.HIP_THRUST_STATION,EQ.KICKBACK_M,EQ.HIP_ABDUCTION_M,EQ.HIP_ADDUCTION_M] },
+  { label:'Leg machines', items:[EQ.HACK,EQ.PENDULUM,EQ.POWER_SQUAT_M,EQ.LEG_PRESS_M,EQ.LEG_EXT_M,EQ.LEG_CURL_SEATED_M,EQ.LEG_CURL_LYING_M,EQ.LEG_CURL_KNEELING_M,EQ.CALF_STANDING_M,EQ.CALF_SEATED_M,EQ.CALF_SEATED_STRAIGHT_M,EQ.HIP_THRUST_M,EQ.HIP_THRUST_STATION,EQ.KICKBACK_M,EQ.HIP_ABDUCTION_M,EQ.HIP_ADDUCTION_M] },
   { label:'Upper body machines', items:[EQ.CHEST_PRESS_M,EQ.INCLINE_PRESS_M,EQ.PEC_DECK,EQ.CHEST_FLY_M,EQ.SHOULDER_PRESS_M,EQ.LAT_RAISE_M,EQ.REAR_DELT_M,EQ.ROW_CS_M,EQ.TBAR_M,EQ.PULLDOWN_M,EQ.SHRUG_M,EQ.VIKING,EQ.SEAL_BENCH,EQ.PREACHER_M,EQ.TRI_PUSHDOWN_M] },
   { label:'Other', items:[EQ.STEPPER,EQ.ROMAN_CHAIR,EQ.CRUNCH_M,EQ.CAPTAINS_CHAIR,EQ.HEAD_HARNESS] },
 ];
@@ -1060,7 +1062,7 @@ const PRESET_FULL = new Set(Object.values(EQ));
 // kit. A well-stocked chain gym, but not one with a pendulum squat or a
 // seated straight-leg calf machine.
 const LARGE_GYM_EXCLUDE = new Set([
-  EQ.TRAP_BAR, EQ.LEVER_ARMS, EQ.SEAL_BENCH, EQ.PENDULUM, EQ.CALF_SEATED_STRAIGHT_M,
+  EQ.TRAP_BAR, EQ.LEVER_ARMS, EQ.SEAL_BENCH, EQ.PENDULUM, EQ.POWER_SQUAT_M, EQ.CALF_SEATED_STRAIGHT_M,
   EQ.LEG_CURL_KNEELING_M, EQ.VIKING, EQ.SHRUG_M, EQ.HEAD_HARNESS,
 ]);
 const PRESET_LARGE = new Set(Object.values(EQ).filter(e => !LARGE_GYM_EXCLUDE.has(e)));
