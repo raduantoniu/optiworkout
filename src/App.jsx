@@ -887,6 +887,33 @@ function buildCustomProgram(b){
            dayCount: freq, rotates: freq !== days.length, unserviceable:[] };
 }
 
+// Load a FINISHED program back into the builder so it can be edited: rows
+// rearranged, days added, exercises added or dropped. Both schemas decode to
+// the same day/row shape, so one converter takes an OP1 (skeleton) or an OPC1
+// (custom) program alike. A custom code's hand-set overrides are preserved; a
+// skeleton code carries none, so its rows fall back to the pattern defaults the
+// builder recomputes. Editing a skeleton necessarily yields a custom split on
+// the way out — once days or free-form exercises change, it no longer matches
+// any skeleton. seq climbs by one: loading a program to change it produces its
+// next revision, so what a client gets back reads as newer than what they had.
+function programToBuilder(prog){
+  const dayCount = prog.days.length;
+  return {
+    dayCount,
+    freq: prog.dayCount || dayCount,
+    seq: (prog.seq || 1) + 1,
+    names: prog.days.map((d, i) => d.name || `Workout ${i+1}`),
+    days: prog.days.map(d => (d.rows || []).filter(r => r.exId).map(r => ({
+      uid: newUid(),
+      pattern: (r.slot && r.slot.pattern) || PATTERN_OF[r.exId],
+      exId: r.exId,
+      ov: r.ov ? { ...r.ov } : {},
+      ...(r.slot && r.slot.optional ? { opt: true } : {}),
+    }))),
+    pool: [],
+  };
+}
+
 // =====================================================
 // OPC CODE — schema v1.  OPC1-<base64url(payload)>-<checksum>
 // payload = seq | dayName~row,row,... ; dayName~row,row,...
@@ -2483,6 +2510,7 @@ const newUid = () => `x${++UID}`;
 const emptyBuilder = (n = 4) => ({
   dayCount: n,        // workouts in the rotation, one column each
   freq: n,            // sessions a week; differs only for a rotating split
+  seq: 1,             // revision counter; climbs when a loaded code is edited
   names: Array.from({length:n}, (_,i) => `Workout ${i+1}`),
   days:  Array.from({length:n}, () => []),
   pool:  [],
@@ -2619,8 +2647,21 @@ function SplitBuilderScreen({state, setState, onBack, onFinish}){
   const [picker, setPicker] = useState(null);
   const [held, setHeld] = useState(null);
   const [dragUid, setDragUid] = useState(null);
+  const [loadOpen, setLoadOpen] = useState(false);
+  const [loadCode, setLoadCode] = useState('');
+  const [loadErr, setLoadErr] = useState('');
 
   const update = patch => setState({...b, ...patch});
+
+  // Load an existing program (OP1 or OPC1) into the builder to edit it.
+  // decodeProgram routes either schema; the result becomes the working split,
+  // replacing whatever is on the canvas.
+  const loadIntoBuilder = () => {
+    const r = decodeProgram(loadCode.trim());
+    if (!r.ok){ setLoadErr(r.error); return; }
+    setState(programToBuilder(r));
+    setHeld(null); setLoadCode(''); setLoadErr(''); setLoadOpen(false);
+  };
 
   const setDayCount = n => {
     if (n === b.dayCount) return;
@@ -2739,6 +2780,44 @@ function SplitBuilderScreen({state, setState, onBack, onFinish}){
           tracker counts it straight away. Drag from the pool into a workout to build the split. On a
           touchscreen, tap an exercise to pick it up and tap where it goes.
         </p>
+
+        {/* ---- load a code to edit ----------------------------------- */}
+        <div className="mt-5">
+          {!loadOpen ? (
+            <button onClick={() => { setLoadOpen(true); setLoadErr(''); }}
+              className="text-sm font-medium text-orange-700 hover:text-orange-800 flex items-center gap-1.5 transition-colors">
+              <Copy className="w-4 h-4" /> Load a code to edit
+            </button>
+          ) : (
+            <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 max-w-2xl">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="text-sm font-semibold text-stone-900">Load a program to edit</div>
+                  <p className="text-xs text-stone-500 mt-1 leading-relaxed">
+                    Paste an OP1 or OPC1 code. Its workouts drop onto the canvas below, ready to
+                    rearrange, extend, or trim. Sending the new code back replaces the old one.
+                  </p>
+                </div>
+                <button onClick={() => { setLoadOpen(false); setLoadErr(''); }}
+                  className="flex-shrink-0 w-7 h-7 rounded-full hover:bg-stone-200 flex items-center justify-center transition-colors">
+                  <X className="w-4 h-4 text-stone-500" />
+                </button>
+              </div>
+              <div className="mt-3 flex gap-2">
+                <input value={loadCode} onChange={e => { setLoadCode(e.target.value); setLoadErr(''); }}
+                  onKeyDown={e => e.key === 'Enter' && loadCode.trim() && loadIntoBuilder()}
+                  placeholder="OP1-... or OPC1-..."
+                  className="flex-1 px-3 py-2 rounded-lg border border-stone-300 focus:border-orange-500 focus:outline-none font-mono text-sm" />
+                <button onClick={loadIntoBuilder} disabled={!loadCode.trim()}
+                  className="px-4 py-2 rounded-lg bg-stone-900 text-white text-sm font-medium disabled:opacity-40 hover:bg-stone-800 transition-colors">
+                  Load
+                </button>
+              </div>
+              {loadErr && <p className="mt-2 text-sm text-orange-700 flex gap-2"><AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />{loadErr}</p>}
+              <p className="mt-2 text-[11px] text-stone-500">This replaces whatever is on the canvas now.</p>
+            </div>
+          )}
+        </div>
 
         {/* ---- patterns and pool ------------------------------------- */}
         <div className="mt-8 grid lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] gap-8">
@@ -3147,7 +3226,7 @@ export default function App(){
         onBack={() => setScreen('home')}
         onFinish={() => {
           setProg(buildCustomProgram(builder));
-          setOwned(PRESET_FULL); setSeq(1); setIssued(false);
+          setOwned(PRESET_FULL); setSeq(builder.seq || 1); setIssued(false);
           setReturnTo('builder'); setScreen('program');
         }} />;
       break;
