@@ -1118,12 +1118,12 @@ const PRESET_GARAGE = new Set([
 const Shell = ({children, center=false}) => (
   <div className="min-h-screen bg-stone-50 flex flex-col">
     <header className="w-full px-6 py-4 flex items-center justify-between border-b border-stone-200 bg-white">
-      <span className="font-semibold text-stone-900 tracking-tight">ShredSmart™</span>
-      <span className="text-xs text-stone-500 tracking-wider">OptiWorkout™</span>
+      <span className="font-semibold text-stone-900 tracking-tight">ShredSmart</span>
+      <span className="text-xs text-stone-500 tracking-wider">OptiWorkout</span>
     </header>
     <main className={`flex-1 flex ${center ? 'items-center' : 'items-start'} justify-center px-4 py-8`}>{children}</main>
     <footer className="w-full px-6 py-4 border-t border-stone-200 bg-white text-xs text-stone-500 flex justify-between">
-      <span>ShredSmart™</span><span>OptiWorkout™</span>
+      <span>ShredSmart</span><span>OptiWorkout</span>
     </footer>
   </div>
 );
@@ -1229,7 +1229,7 @@ function HomeScreen({onContinue, onCustom, onReload, onBuild}){
     <Card className="max-w-3xl">
       <div className="grid md:grid-cols-2 gap-10 items-center">
         <div>
-          <Eyebrow>OptiWorkout™</Eyebrow>
+          <Eyebrow>OptiWorkout</Eyebrow>
           <h1 className="mt-3 text-4xl md:text-5xl font-bold text-stone-900 tracking-tight leading-tight">
             Build the best program your <em className="italic font-semibold text-orange-600">gym and schedule</em> allow.
           </h1>
@@ -1260,7 +1260,7 @@ function HomeScreen({onContinue, onCustom, onReload, onBuild}){
           </ul>
           <div className="mt-5 space-y-2.5">
             <PrimaryButton onClick={onContinue}>Continue from PhysiquePlan <ArrowRight className="w-4 h-4" /></PrimaryButton>
-            <SecondaryButton onClick={onCustom}>Choose a ShredSmart™ program</SecondaryButton>
+            <SecondaryButton onClick={onCustom}>Choose a ShredSmart program</SecondaryButton>
             <SecondaryButton onClick={onReload}>Reload a program</SecondaryButton>
             <SecondaryButton onClick={onBuild}>Build a custom split</SecondaryButton>
           </div>
