@@ -67,6 +67,7 @@ const EXERCISES = {
   SQUAT_BACK:['Back Squat',[EQ.BARBELL,EQ.RACK],{primary:true}],
   SQUAT_FRONT:['Front Squat',[EQ.BARBELL,EQ.RACK],{primary:true}],
   SPLIT_SQUAT_BULG:['Bulgarian Split Squat',[EQ.DUMBBELLS],{primary:true,db:true}],
+  SPLIT_SQUAT_BULG_SMITH:['Bulgarian Split Squat (Smith Machine)',[EQ.SMITH],{primary:true}],
   // HINGE
   RDL_LEVER:['Romanian Deadlift (Lever Arms)',[EQ.LEVER_ARMS],{primary:true}],
   RDL_TRAP:['Romanian Deadlift (Trap Bar)',[EQ.TRAP_BAR],{primary:true}],
@@ -76,6 +77,8 @@ const EXERCISES = {
   RDL_BB:['Romanian Deadlift (Barbell)',[EQ.BARBELL],{primary:true}],
   RDL_CABLE:['Romanian Deadlift (Cable)',[EQ.CABLE],{primary:true}],
   RDL_DB:['Romanian Deadlift (Dumbbell)',[EQ.DUMBBELLS],{primary:true,db:true}],
+  GM_BB:['Good Morning (Barbell)',[EQ.BARBELL,EQ.RACK],{primary:true}],
+  GM_SMITH:['Good Morning (Smith Machine)',[EQ.SMITH],{primary:true}],
   // GLUTE
   HIP_THRUST_BB:['Barbell Hip Thrust (Hip Thrust Station)',[EQ.HIP_THRUST_STATION,EQ.BARBELL]],
   HIP_THRUST_MACH:['Hip Thrust (Machine)',[EQ.HIP_THRUST_M]],
@@ -229,8 +232,8 @@ const EXERCISES = {
 
 // Pools in PREFERENCE ORDER — first equippable, un-vetoed entry wins.
 const POOLS = {
-  SQUAT:['HACK_SQUAT','PENDULUM_SQUAT','POWER_SQUAT','LEG_PRESS','SQUAT_SMITH','SQUAT_BACK','SQUAT_FRONT','SPLIT_SQUAT_BULG'],
-  HINGE:['RDL_LEVER','RDL_TRAP','RDL_LANDMINE','RDL_SMITH','RDL_BB','BACK_EXT_WTD','RDL_CABLE','RDL_DB'],
+  SQUAT:['HACK_SQUAT','PENDULUM_SQUAT','POWER_SQUAT','LEG_PRESS','SQUAT_SMITH','SQUAT_BACK','SQUAT_FRONT','SPLIT_SQUAT_BULG','SPLIT_SQUAT_BULG_SMITH'],
+  HINGE:['RDL_LEVER','RDL_TRAP','RDL_LANDMINE','RDL_SMITH','RDL_BB','BACK_EXT_WTD','RDL_CABLE','RDL_DB','GM_BB','GM_SMITH'],
   GLUTE:['HIP_THRUST_BB','HIP_THRUST_MACH','HIP_THRUST_SMITH','HIP_THRUST_BENCH','HIP_THRUST_DB_1L'],
   GLUTE_ISO:['KICKBACK_CABLE','KICKBACK_MED_CABLE','KICKBACK_MACH','HIP_ABDUCTION','HIP_ADDUCTION'],
   LEG_EXT:['LEG_EXT','LEG_EXT_1L','SISSY_SQUAT','REVERSE_NORDIC'],
@@ -778,6 +781,10 @@ const TOKEN_ORDER = [
   'LEG_EXT_1L','LEG_CURL_SEATED_1L','LEG_CURL_LYING_1L','CABLE_LYING_LEG_CURL','CALF_LEG_PRESS',
   'DIP_WEIGHTED','DIP_BW',
   'POWER_SQUAT',
+  // This session's additions. Appended at the END the moment they were added to
+  // EXERCISES, per the standing rule: every new exercise is frozen on arrival so
+  // existing OP1/OPC1 codes keep decoding to the same exercises. Never reorder.
+  'GM_BB','GM_SMITH','SPLIT_SQUAT_BULG_SMITH',
 ];
 // TOKEN LIST INTEGRITY — fail loud, never guess.
 // An OP1 code stores each exercise as its INDEX in this list, so the list has to
@@ -1845,7 +1852,12 @@ const EXERCISE_MUSCLES = {
   SQUAT_BACK:       { QUADS:1, GLUTES:0.5, ADDUCTORS:0.5, LOWER_BACK:0.5 },
   SQUAT_FRONT:      { QUADS:1, GLUTES:0.5, ADDUCTORS:0.5, LOWER_BACK:0.5, UPPER_BACK:0.5 },
   SPLIT_SQUAT_BULG: { QUADS:1, GLUTES:1, ADDUCTORS:0.5 },
+  SPLIT_SQUAT_BULG_SMITH: { QUADS:1, GLUTES:1, ADDUCTORS:0.5 },
   BACK_EXT_WTD:     { LOWER_BACK:1, GLUTES:0.5, HAMSTRINGS:0.5 },
+  // Bar rides on the back, so no grip credit — unlike the RDLs the HINGE default
+  // is tuned for. Otherwise a standard hip hinge: hamstrings and lower back lead.
+  GM_BB:    { HAMSTRINGS:1, LOWER_BACK:1, GLUTES:0.5 },
+  GM_SMITH: { HAMSTRINGS:1, LOWER_BACK:1, GLUTES:0.5 },
   DB_FLY_PRESS:     { CHEST:1, FRONT_DELT:0.5, TRICEPS:0.5 },
   DB_FLY_PRESS_INC: { CHEST:1, FRONT_DELT:0.5, TRICEPS:0.5 },
   OHP_BB:            { FRONT_DELT:1, TRICEPS:0.5, SIDE_DELT:0.5, TRAPS:0.5 },
