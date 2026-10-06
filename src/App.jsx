@@ -2279,20 +2279,32 @@ const B = ({children}) => <span className="font-semibold text-stone-900">{childr
 
 // A worked session. Sets that reached the top of the rep range are marked, so
 // the rule you are being taught is visible in the numbers themselves.
-const LogBlock = ({title, sets, verdict, go}) => (
+//
+// Columns are sized in `ch` to the widest value in this block rather than to a
+// fixed width, so the row is as narrow as its contents allow and the TOP OF
+// RANGE tag stays inside the card on a phone. A row can carry its own `label`
+// where it is a whole workout rather than a set, and `gap` stands in for the
+// workouts skipped between two that are shown.
+const LogBlock = ({title, sets, verdict, go}) => {
+  const widest = f => Math.max(...sets.map((st, i) => st.gap ? 0 : String(f(st, i)).length));
+  const label = (st, i) => st.label || `Set ${i+1}`;
+  const col = f => ({ width: `${widest(f)}ch` });
+  return (
   <div className="mt-3 rounded-xl border border-stone-200 overflow-hidden">
     <div className="px-4 py-2 bg-stone-50 border-b border-stone-200 text-xs font-semibold text-stone-700">
       {title}
     </div>
-    <div className="px-4 py-3 space-y-1.5">
-      {sets.map((st, i) => (
-        <div key={i} className="flex items-baseline gap-2 font-mono text-xs">
-          <span className="w-11 text-stone-400 flex-shrink-0">Set {i+1}</span>
-          <span className="w-20 text-right text-stone-800 flex-shrink-0">{st.load}</span>
+    <div className="px-3 sm:px-4 py-3 space-y-1.5">
+      {sets.map((st, i) => st.gap ? (
+        <div key={i} className="font-mono text-xs text-stone-400">...</div>
+      ) : (
+        <div key={i} className="flex flex-wrap items-baseline gap-x-1.5 font-mono text-xs">
+          <span style={col(label)} className="text-stone-400 flex-shrink-0">{label(st, i)}</span>
+          <span style={col(x => x.load)} className="text-right text-stone-800 flex-shrink-0">{st.load}</span>
           <span className="text-stone-300 flex-shrink-0">×</span>
-          <span className="w-16 text-stone-800 flex-shrink-0">{st.reps}</span>
+          <span style={col(x => x.reps)} className="text-stone-800 flex-shrink-0">{st.reps}</span>
           {st.top && (
-            <span className="font-sans text-[10px] tracking-wide text-orange-600 font-semibold">TOP OF RANGE</span>
+            <span className="font-sans text-[10px] text-orange-600 font-semibold whitespace-nowrap">TOP OF RANGE</span>
           )}
         </div>
       ))}
@@ -2302,7 +2314,8 @@ const LogBlock = ({title, sets, verdict, go}) => (
       {verdict}
     </div>
   </div>
-);
+  );
+};
 
 const EffortRow = ({icon, what, verdict, good}) => (
   <div className="flex gap-3 py-3 border-b border-stone-100 last:border-0">
@@ -2524,10 +2537,16 @@ function HowToRun({prog}){
         Straight sets work the same way. Nothing about the two steps changes, only the fact that the
         load is the same across {two ? 'both' : 'all'} sets.
       </P>
-      <LogBlock title={`Lateral Raise, ${n} sets of 10-15 · three sessions in a row`}
-        sets={[{load:'10 kg', reps:cutReps('14, 10, 9')}, {load:'10 kg', reps:cutReps('15, 13, 11')}, {load:'10 kg', reps:cutReps('15, 15, 15'), top:true}]}
+      <LogBlock title={`Lateral Raise, ${n} sets of 10-15 · long-term progression`}
+        sets={[
+          {label:'Workout 1', load:'10 kg', reps:cutReps('14, 10, 9')},
+          {label:'Workout 2', load:'10 kg', reps:cutReps('15, 11, 9')},
+          {gap:true},
+          {label:'Workout 12', load:'10 kg', reps:cutReps('15, 15, 15'), top:true},
+          {label:'Workout 13', load:'12.5 kg', reps:cutReps('11, 10, 9')},
+        ]}
         go
-        verdict={`Three sessions at the same load, adding reps each time. On the third ${all} sets hit 15, so the next session moves up by the smallest increment and the rep count drops back into the low teens.`} />
+        verdict={`Same load in ${two ? 'both' : 'all'} sets, adding reps each session. When ${two ? 'both' : 'all'} sets hit the top of the rep range, the next session moves up in load by the smallest increment and the rep count drops back a bit. Each progression cycle might take several weeks.`} />
 
       <H>Dumbbell exercises drop more reps</H>
       <P>
