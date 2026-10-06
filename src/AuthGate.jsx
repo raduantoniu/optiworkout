@@ -89,6 +89,10 @@ export default function AuthGate({ children, appName = APP_NAME }) {
 
   async function checkSession() {
     setState('checking');
+    // Local development only: `npm run dev` has no /api, so the gate could never
+    // open. import.meta.env.DEV is false in a production build, where this line
+    // is compiled away, so the live site always checks the session.
+    if (import.meta.env.DEV) return setState('authed');
     try {
       const r = await fetch('/api/session', { credentials: 'same-origin' });
       const d = await r.json();

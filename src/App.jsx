@@ -248,7 +248,7 @@ const POOLS = {
   CHEST_ISO:['DB_FLY_PRESS','DB_FLY_PRESS_INC','PEC_DECK','CHEST_FLY_MACH','CHEST_FLY_MACH_STACK','CHEST_FLY_CABLE','CHEST_FLY_CABLE_STAND'],
   VERT_PUSH:['SHLDR_PRESS_DB','VIKING_PRESS','OHP_BB','SHLDR_PRESS_MACH','SHLDR_PRESS_MACH_STACK','SHLDR_PRESS_SMITH','SHLDR_PRESS_DB_1A','LANDMINE_PRESS_SEATED','LANDMINE_PRESS_STANDING','LANDMINE_PRESS_KNEELING_1A'],
   HORIZ_PULL:['ROW_TBAR_CS','ROW_CS_MACH','ROW_CS_MACH_STACK','ROW_SEAL','ROW_CABLE_SEATED','ROW_CABLE_CS_1A','ROW_CABLE_CS','ROW_TBAR_STANDING','ROW_PENDLAY','ROW_DB_CS','ROW_DB_1A','ROW_INVERTED'],
-  VERT_PULL:['CHINUP_W','PULLUP_NEUTRAL_W','PULLUP_W','PULLUP_BW','PULLDOWN_CABLE','PULLDOWN_CABLE_1A','PULLDOWN_MACH','PULLDOWN_MACH_STACK','PULLDOWN_MACH_1A','PULLUP_ASSISTED','PULLUP_BAND','PULLOVER_DB'],
+  VERT_PULL:['CHINUP_W','PULLUP_NEUTRAL_W','PULLUP_W','PULLDOWN_CABLE','PULLDOWN_CABLE_1A','PULLDOWN_MACH','PULLDOWN_MACH_STACK','PULLDOWN_MACH_1A','PULLUP_BW','PULLUP_ASSISTED','PULLUP_BAND','PULLOVER_DB'],
   TRAPS:['SHRUG_MACH','SHRUG_SMITH','SHRUG_TRAP','SHRUG_BB','SHRUG_DB','SHRUG_KELSO','SHRUG_KELSO_CABLE'],
   SIDE_DELT:['LAT_RAISE_MACH','CUBAN_PRESS','LAT_RAISE_DB','LAT_RAISE_CBL_BTB','LAT_RAISE_CABLE'],
   REAR_DELT:['REAR_DELT_MACH','REAR_DELT_CBL_1A','FACE_PULL_CABLE','REAR_DELT_DB_30'],
@@ -509,7 +509,17 @@ const S = (pattern, opts={}) => ({pattern, ...opts});
 const SKELETONS = {
 
   // ---------- 2 days ----------
-  FBPP2:{ name:'Full Body Push / Full Body Pull', dayCount:2, days:[
+  UL2:{ name:'Upper · Lower', dayCount:2, days:[
+    { name:'Upper', slots:[S('INCLINE_PRESS'),S('VERT_PULL'),S('VERT_PUSH'),S('CHEST_ISO'),S('HORIZ_PULL'),S('TRI_OH'),S('BICEPS')] },
+    { name:'Lower', slots:[S('SQUAT'),S('HINGE'),S('LEG_EXT'),S('LEG_CURL'),S('CALF'),S('SIDE_DELT'),S('REAR_DELT')] },
+  ],
+    pros:['Fewer warm-ups and setup changes within each session compared to Full Body.',
+          'Upper-body pressing and pulling movements alternate within the session, which leads to better performance.',
+          'Simple, familiar structure.'],
+    cons:['Each major muscle is trained once per week.',
+          'Workouts can run quite long.'] },
+
+  FBPP2:{ name:'Full Body Push · Full Body Pull', dayCount:2, days:[
     { name:'Full Body Push', slots:[S('SQUAT'),S('LEG_EXT'),S('CALF'),S('INCLINE_PRESS'),S('FLAT_PRESS'),S('TRI_OH'),S('SIDE_DELT')] },
     { name:'Full Body Pull', slots:[S('HINGE'),S('LEG_CURL'),S('VERT_PULL'),S('HORIZ_PULL'),S('BICEPS'),S('REAR_DELT'),S('SIDE_DELT')] },
   ],
@@ -517,7 +527,7 @@ const SKELETONS = {
     cons:['Each major muscle is trained once per week.',
           'Multiple pressing/pulling movements are performed in a row which leads to reduced performance in subsequent exercises.'] },
 
-  LPUP2:{ name:'Lower Push + Upper Pull / Lower Pull + Upper Push', dayCount:2, days:[
+  LPUP2:{ name:'Lower Push + Upper Pull · Lower Pull + Upper Push', dayCount:2, days:[
     { name:'Lower Push + Upper Pull', slots:[S('SQUAT'),S('LEG_EXT'),S('CALF'),S('VERT_PULL'),S('HORIZ_PULL'),S('BICEPS'),S('SIDE_DELT')] },
     { name:'Lower Pull + Upper Push', slots:[S('HINGE'),S('LEG_CURL'),S('INCLINE_PRESS'),S('FLAT_PRESS'),S('TRI_OH'),S('REAR_DELT'),S('SIDE_DELT')] },
   ],
@@ -535,7 +545,7 @@ const SKELETONS = {
     cons:['Sessions take longer due to more warm-ups and setup changes within each session.'] },
 
   // ---------- 3 days ----------
-  ULU3:{ name:'Upper / Lower / Upper', dayCount:3, days:[
+  ULU3:{ name:'Upper · Lower · Upper', dayCount:3, days:[
     { name:'Upper', slots:[S('INCLINE_PRESS'),S('HORIZ_PULL'),S('CHEST_ISO'),S('TRI_OH'),S('SIDE_DELT')] },
     { name:'Lower', slots:[S('SQUAT'),S('HINGE'),S('LEG_EXT'),S('LEG_CURL'),S('CALF'),S('ABS')] },
     { name:'Upper', slots:[S('VERT_PULL'),S('VERT_PUSH'),S('HORIZ_PULL'),S('FLAT_PRESS'),S('BICEPS'),S('REAR_DELT')] },
@@ -545,7 +555,16 @@ const SKELETONS = {
           'Sessions are relatively short.'],
     cons:['Lower body is trained once per week.'] },
 
-  PPL3:{ name:'Push / Pull / Legs', dayCount:3, days:[
+  UL3:{ name:'Upper · Lower Alternating', dayCount:3, rotates:true, days:[
+    { name:'Upper', slots:[S('INCLINE_PRESS'),S('VERT_PULL'),S('VERT_PUSH'),S('CHEST_ISO'),S('HORIZ_PULL'),S('TRI_OH'),S('BICEPS')] },
+    { name:'Lower', slots:[S('SQUAT'),S('HINGE'),S('LEG_EXT'),S('LEG_CURL'),S('CALF'),S('SIDE_DELT'),S('REAR_DELT')] },
+  ],
+    pros:['Each major muscle group is trained every 4-5 days.',
+          'Upper and lower body receive equal attention.',
+          'Fewer warm-ups and setup changes within each session compared to Full Body.'],
+    cons:['Workouts can run quite long.'] },
+
+  PPL3:{ name:'Push · Pull · Legs', dayCount:3, days:[
     { name:'Push', slots:[S('INCLINE_PRESS'),S('VERT_PUSH'),S('FLAT_PRESS'),S('CHEST_ISO'),S('TRI_OH'),S('SIDE_DELT')] },
     { name:'Pull', slots:[S('VERT_PULL'),S('HORIZ_PULL'),S('HORIZ_PULL'),S('BICEPS'),S('REAR_DELT'),S('SIDE_DELT')] },
     { name:'Legs', slots:[S('SQUAT'),S('HINGE'),S('LEG_EXT'),S('LEG_CURL'),S('CALF'),S('ABS')] },
@@ -554,6 +573,14 @@ const SKELETONS = {
           'Simple, familiar structure.'],
     cons:['Most muscles are trained once per week.',
           'Multiple pressing/pulling movements are performed in a row which leads to reduced performance in subsequent exercises.'] },
+
+  AB3:{ name:'A · B Alternating', dayCount:3, rotates:true, days:[
+    { name:'Workout A', slots:[S('SQUAT'),S('INCLINE_PRESS'),S('VERT_PUSH'),S('CHEST_ISO'),S('TRI_OH'),S('SIDE_DELT')] },
+    { name:'Workout B', slots:[S('HINGE'),S('VERT_PULL'),S('HORIZ_PULL'),S('BICEPS'),S('REAR_DELT'),S('CALF'),S('ABS')] },
+  ],
+    pros:['Each major muscle group is trained every 4-5 days.',
+          'More frequent practice of the same lifts accelerates strength gains through faster skill development.'],
+    cons:['Lower-body receives relatively little weekly work.'] },
 
   FB3:{ name:'Full Body 3x', dayCount:3, days:[
     { name:'Workout 1', slots:[S('INCLINE_PRESS'),S('VERT_PULL'),S('CHEST_ISO'),S('HORIZ_PULL'),S('SIDE_DELT'),S('CALF')] },
@@ -564,15 +591,7 @@ const SKELETONS = {
           'Pressing and pulling work is distributed across all sessions which leads to better performance in each individual exercise.'],
     cons:['Sessions take longer due to more warm-ups and setup changes within each session.'] },
 
-  AB3:{ name:'A / B Alternating', dayCount:3, rotates:true, days:[
-    { name:'Workout A', slots:[S('SQUAT'),S('INCLINE_PRESS'),S('VERT_PUSH'),S('CHEST_ISO'),S('TRI_OH'),S('SIDE_DELT')] },
-    { name:'Workout B', slots:[S('HINGE'),S('VERT_PULL'),S('HORIZ_PULL'),S('BICEPS'),S('REAR_DELT'),S('CALF'),S('ABS')] },
-  ],
-    pros:['Each major muscle group is trained every 3-5 days.',
-          'More frequent practice of the same lifts accelerates strength gains through faster skill development.'],
-    cons:['Lower-body receives relatively little weekly work.'] },
-
-  ABCD3:{ name:'A / B / C / D Alternating', dayCount:3, rotates:true, days:[
+  ABCD3:{ name:'A · B · C · D Alternating', dayCount:3, rotates:true, days:[
     { name:'Workout A', slots:[S('HINGE'),S('LEG_CURL'),S('INCLINE_PRESS'),S('VERT_PULL'),S('FLAT_PRESS'),S('HORIZ_PULL')] },
     { name:'Workout B', slots:[S('SQUAT'),S('LEG_EXT'),S('SIDE_DELT'),S('TRI_OH'),S('BICEPS'),S('REAR_DELT'),S('CALF')] },
     { name:'Workout C', slots:[S('HINGE'),S('LEG_CURL'),S('FLAT_PRESS'),S('HORIZ_PULL'),S('VERT_PUSH'),S('VERT_PULL')] },
@@ -585,7 +604,7 @@ const SKELETONS = {
           'Sessions take longer due to more warm-ups and setup changes within each session.'] },
 
   // ---------- 4 days ----------
-  PPLU4:{ name:'Push / Pull / Legs / Upper', dayCount:4, days:[
+  PPLU4:{ name:'Push · Pull · Legs · Upper', dayCount:4, days:[
     { name:'Push', slots:[S('FLAT_PRESS'),S('INCLINE_PRESS'),S('TRI_OH'),S('SIDE_DELT')] },
     { name:'Pull', slots:[S('VERT_PULL'),S('HORIZ_PULL'),S('BICEPS'),S('REAR_DELT')] },
     { name:'Legs', slots:[S('SQUAT'),S('HINGE'),S('LEG_EXT'),S('LEG_CURL'),S('CALF')] },
@@ -599,7 +618,7 @@ const SKELETONS = {
           'Lower-body is trained once per week.',
           'Multiple pressing/pulling movements are performed in a row which leads to reduced performance in subsequent exercises.'] },
 
-  LULA4:{ name:'Lower / Upper / Legs + Arms / Upper', dayCount:4, days:[
+  LULA4:{ name:'Lower · Upper · Legs + Arms · Upper', dayCount:4, days:[
     { name:'Lower', slots:[S('SQUAT'),S('HINGE'),S('LEG_EXT'),S('LEG_CURL'),S('CALF')] },
     { name:'Upper', slots:[S('INCLINE_PRESS'),S('HORIZ_PULL'),S('CHEST_ISO'),S('VERT_PULL'),S('SIDE_DELT')] },
     { name:'Legs + Arms', slots:[S('GLUTE'),S('SQUAT'),S('TRI_OH'),S('BICEPS'),S('SIDE_DELT')] },
@@ -624,7 +643,7 @@ const SKELETONS = {
           'Upper-body lifts are always trained after two lower-body exercises.'] },
 
   // ---------- 5 days ----------
-  L5A:{ name:'Lower / Chest + Back / Shoulders + Arms / Lower + Neck / Upper', dayCount:5, days:[
+  L5A:{ name:'Lower · Chest + Back · Shoulders + Arms · Lower + Neck · Upper', dayCount:5, days:[
     { name:'Lower', slots:[S('SQUAT'),S('HINGE'),S('LEG_EXT'),S('LEG_CURL'),S('CALF'),S('ABS')] },
     { name:'Chest + Back', slots:[S('INCLINE_PRESS'),S('HORIZ_PULL'),S('FLAT_PRESS'),S('VERT_PULL'),S('REAR_DELT')] },
     { name:'Shoulders + Arms', slots:[S('VERT_PUSH'),S('BICEPS'),S('TRI_OH'),S('BICEPS'),S('TRI_PUSHDOWN'),S('SIDE_DELT')] },
@@ -637,7 +656,7 @@ const SKELETONS = {
           'Heavy lower-body compound lifts get their own dedicated workouts for improved focus and fatigue management.'],
     cons:['Longer sessions: more warm-ups and equipment changes than a body-part-focused split.'] },
 
-  L5B:{ name:'Legs / Push / Pull / Lower + Neck / Upper', dayCount:5, days:[
+  L5B:{ name:'Legs · Push · Pull · Lower + Neck · Upper', dayCount:5, days:[
     { name:'Legs', slots:[S('SQUAT'),S('HINGE'),S('LEG_EXT'),S('LEG_CURL'),S('CALF'),S('ABS')] },
     { name:'Push', slots:[S('INCLINE_PRESS'),S('VERT_PUSH'),S('FLAT_PRESS'),S('TRI_OH'),S('SIDE_DELT')] },
     { name:'Pull', slots:[S('VERT_PULL'),S('HORIZ_PULL'),S('TRAPS'),S('BICEPS'),S('REAR_DELT')] },
@@ -819,10 +838,16 @@ const b64url = s => btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,
 const unb64url = s => atob(s.replace(/-/g,'+').replace(/_/g,'/'));
 function checksum2(str){ let h=0; for(let i=0;i<str.length;i++) h=(h*31+str.charCodeAt(i))%1296; return h.toString(36).padStart(2,'0'); }
 
+// The two-set option rides on the sequence field, the same way a rotation's
+// frequency does on a custom code. parseInt stops at the letter, so a code
+// carrying it still reads as the same sequence number everywhere.
+const TWO_SETS_FLAG = 's2';
+const hasTwoSets = seqStr => /s2$/.test(String(seqStr));
+
 function encodeProgram(prog, seq = 1){
   const tokens = [];
   prog.days.forEach(d => d.rows.forEach(r => tokens.push(r.exId ? ID_TO_TOKEN[r.exId] : '-')));
-  const payload = `${seq}|${prog.skelId}|${tokens.join(',')}`;
+  const payload = `${seq}${prog.twoSets ? TWO_SETS_FLAG : ''}|${prog.skelId}|${tokens.join(',')}`;
   return `OP1-${b64url(payload)}-${checksum2(payload)}`;
 }
 
@@ -853,7 +878,7 @@ function decodeProgram(code){
     days.push({ name:d.name, rows });
   }
   return { ok:true, seq:parseInt(seqStr,10)||1, skelId, name:skel.name, days,
-           dayCount:skel.dayCount, rotates:!!skel.rotates, unserviceable:[] };
+           dayCount:skel.dayCount, rotates:!!skel.rotates, twoSets:hasTwoSets(seqStr), unserviceable:[] };
 }
 
 // =====================================================
@@ -911,6 +936,9 @@ function buildCustomProgram(b){
 // any skeleton. seq climbs by one: loading a program to change it produces its
 // next revision, so what a client gets back reads as newer than what they had.
 function programToBuilder(prog){
+  // The builder edits sets per row, so a two-set program arrives with the cut
+  // written onto its rows rather than as a program-wide switch.
+  prog = cutSets(prog);
   const dayCount = prog.days.length;
   return {
     dayCount,
@@ -921,7 +949,7 @@ function programToBuilder(prog){
       uid: newUid(),
       pattern: (r.slot && r.slot.pattern) || PATTERN_OF[r.exId],
       exId: r.exId,
-      ov: r.ov ? { ...r.ov } : {},
+      ov: { ...(r.ov || {}), ...(r.cut ? { sets: r.sets } : {}) },
       ...(r.slot && r.slot.optional ? { opt: true } : {}),
     }))),
     pool: [],
@@ -989,8 +1017,9 @@ function encodeCustom(prog, seq = 1){
   // Sessions a week rides on the sequence field. Codes issued before rotation
   // existed carry no star and fall back to one session per workout.
   const cycle = prog.days.length;
+  const s = `${seq}${prog.twoSets ? TWO_SETS_FLAG : ''}`;
   const head = prog.rotates && prog.dayCount && prog.dayCount !== cycle
-    ? `${seq}*${prog.dayCount}` : `${seq}`;
+    ? `${s}*${prog.dayCount}` : s;
   const payload = `${head}|${body}`;
   return `OPC1-${b64urlUtf8(payload)}-${checksum2(payload)}`;
 }
@@ -1036,7 +1065,8 @@ function decodeCustom(code){
   if (!days.length) return { ok:false, error:'That code has no workouts in it.' };
   const cycle = days.length;
   return { ok:true, custom:true, seq, name:'Custom Split', days,
-           dayCount: freq || cycle, rotates: !!freq && freq !== cycle, unserviceable:[] };
+           dayCount: freq || cycle, rotates: !!freq && freq !== cycle, twoSets:hasTwoSets(seqStr),
+           unserviceable:[] };
 }
 
 // One entry point for both schemas, so every caller stays schema-agnostic.
@@ -1822,6 +1852,17 @@ function rowSpec(row){
   };
 }
 
+// The time-saving option: every exercise prescribed 3 sets drops to 2. It is a
+// view over the program rather than an edit to it, so swaps keep working on the
+// untouched rows and switching it off restores exactly what was there.
+const CUT_FROM = 3, CUT_TO = 2;
+const canCutSets = prog => prog.days.some(d => d.rows.some(r => r.exId && rowSpec(r).sets === CUT_FROM));
+function cutSets(prog){
+  if (!prog.twoSets) return prog;
+  return { ...prog, days: prog.days.map(d => ({ ...d, rows: d.rows.map(r =>
+    r.exId && rowSpec(r).sets === CUT_FROM ? { ...r, sets: CUT_TO, cut: true } : r) })) };
+}
+
 // 1 = primary (full set), 0.5 = secondary (half set).
 // Forearms take a QUARTER set on every pull, curl, shrug and RDL. Grip work on
 // those lifts is isometric and near the end of its range, so it earns less than
@@ -2135,6 +2176,19 @@ function dayStats(day){
 
 const round5 = n => Math.round(n / 5) * 5;
 
+// How long one pass through a rotation takes, in days. Sessions are not evenly
+// spaced across a week, so a span that is not a whole number of days is given
+// as the two it falls between: two workouts at three sessions a week come round
+// every 4-5 days, never every 4.7.
+function cycleSpan(cycleLength, perWeek){
+  const days = cycleLength / perWeek * 7;
+  if (Math.abs(days - Math.round(days)) < 0.01){
+    const d = Math.round(days);
+    return d === 7 ? 'week' : `${d} days`;
+  }
+  return `${Math.floor(days)}-${Math.ceil(days)} days`;
+}
+
 function programStats(prog){
   const core = prog.days.filter(d => !isOptionalDay(d));
   const optional = prog.days.filter(isOptionalDay);
@@ -2194,7 +2248,7 @@ function ProgramGlance({prog}){
         <p className="mt-2.5 text-xs text-stone-500 leading-relaxed">
           These {s.cycleLength} workouts run in order rather than on fixed days. You train{' '}
           {s.dayCount} times a week and take whichever comes next, so the cycle repeats every{' '}
-          {s.cycleLength === s.dayCount ? 'week' : `${round1(s.cycleLength / s.dayCount)} weeks`}.
+          {cycleSpan(s.cycleLength, s.dayCount)}.
           Set and volume figures are averages across the rotation, because no single week matches
           them exactly.
         </p>
@@ -2266,6 +2320,13 @@ const EffortRow = ({icon, what, verdict, good}) => (
 function HowToRun({prog}){
   const s = programStats(prog);
   const cautioned = s.rirCaution;
+  // With sets cut to two, every worked example and every "all three sets"
+  // below has to say two, or the guide contradicts the rows above it.
+  const two = !!prog.twoSets;
+  const n = two ? 2 : 3;
+  const all = two ? 'both' : 'all three';
+  const cut = sets => two ? sets.slice(0, 2) : sets;
+  const cutReps = str => two ? str.split(', ').slice(0, 2).join(', ') : str;
   return (
     <div>
       {/* the whole system, before any detail */}
@@ -2278,15 +2339,15 @@ function HowToRun({prog}){
           </li>
           <li className="flex gap-3">
             <span className="text-orange-400 font-bold flex-shrink-0">2</span>
-            <span>On exercises marked <span className="font-semibold text-white">RPT</span>, your heaviest set is first, then you drop the weight 5-10% for each following set.</span>
+            <span>On exercises marked <span className="font-semibold text-white">RPT</span>, your heaviest set is first, then you drop the weight 5-10% for {two ? 'the second set' : 'each following set'}.</span>
           </li>
           <li className="flex gap-3">
             <span className="text-orange-400 font-bold flex-shrink-0">3</span>
-            <span>On exercises marked <span className="font-semibold text-white">SS</span>, you use the same weight for all sets.</span>
+            <span>On exercises marked <span className="font-semibold text-white">SS</span>, you use the same weight for {two ? 'both' : 'all'} sets.</span>
           </li>
           <li className="flex gap-3">
             <span className="text-orange-400 font-bold flex-shrink-0">4</span>
-            <span>Add reps until you reach the top of the rep range in <span className="font-semibold text-white">every</span> set. Then add the smallest weight increment available and build the reps back up.</span>
+            <span>Add reps until you reach the top of the rep range in <span className="font-semibold text-white">{two ? 'both' : 'every'}</span> {two ? 'sets' : 'set'}. Then add the smallest weight increment available and build the reps back up.</span>
           </li>
         </ol>
         <p className="mt-4 pt-4 border-t border-stone-700 text-xs text-stone-400 leading-relaxed">
@@ -2373,16 +2434,18 @@ function HowToRun({prog}){
         </div>
         <P>
           Your heaviest set comes first, while you are fresh. Then you reduce the weight 5-10% for
-          each following set. Used on your compound lifts and anything else loaded heavily enough to
+          {two ? ' the second set' : ' each following set'}. Used on your compound lifts and anything else loaded heavily enough to
           warrant it, which is {s.models.RPT} {s.models.RPT === 1 ? 'exercise' : 'exercises'} in your
           program.
         </P>
-        <LogBlock title="Incline Barbell Press, 3 sets of 6-8"
-          sets={[{load:'60 kg', reps:8, top:true}, {load:'57.5 kg', reps:8, top:true}, {load:'55 kg', reps:8, top:true}]}
+        <LogBlock title={`Incline Barbell Press, ${n} sets of 6-8`}
+          sets={cut([{load:'60 kg', reps:8, top:true}, {load:'57.5 kg', reps:8, top:true}, {load:'55 kg', reps:8, top:true}])}
           verdict="Each set is taken to your RIR target. The weight drops just enough to keep you inside the same rep range as fatigue builds." />
         <P>
-          If you kept the same weight for all three sets, your reps would fall away, or you would
-          have to hold back on the first sets to survive the last. RPT keeps you inside the target
+          {two
+            ? 'If you kept the same weight for both sets, your reps would fall away on the second, or you would have to hold back on the first to survive it.'
+            : 'If you kept the same weight for all three sets, your reps would fall away, or you would have to hold back on the first sets to survive the last.'}
+          {' '}RPT keeps you inside the target
           range and close to your limit on every set, which is what avoids junk volume: sets too far
           from failure to be worth doing.
         </P>
@@ -2394,12 +2457,12 @@ function HowToRun({prog}){
           <span className="text-sm font-bold text-stone-900">Straight Sets</span>
         </div>
         <P>
-          Same weight across all sets. Used on isolation exercises and smaller muscles that recover
-          well between sets, where an RPT drop would leave you lifting almost nothing by the third
-          set. Used on {s.models.SS} {s.models.SS === 1 ? 'exercise' : 'exercises'} in your program.
+          Same weight across {two ? 'both' : 'all'} sets. Used on isolation exercises and smaller muscles that recover
+          well between sets, where an RPT drop would leave you lifting almost nothing by the
+          {two ? ' last' : ' third'} set. Used on {s.models.SS} {s.models.SS === 1 ? 'exercise' : 'exercises'} in your program.
         </P>
-        <LogBlock title="Dumbbell Lateral Raise, 3 sets of 10-15"
-          sets={[{load:'10 kg', reps:14}, {load:'10 kg', reps:10}, {load:'10 kg', reps:9}]}
+        <LogBlock title={`Dumbbell Lateral Raise, ${n} sets of 10-15`}
+          sets={cut([{load:'10 kg', reps:14}, {load:'10 kg', reps:10}, {load:'10 kg', reps:9}])}
           verdict="Your reps drop across sets and that is expected. You hold the load and work on adding reps session to session." />
       </div>
 
@@ -2418,12 +2481,12 @@ function HowToRun({prog}){
           </div>
           <p className="mt-2 text-sm text-stone-600 leading-relaxed">
             Keep the weight exactly where it is and add reps session to session. You are trying to
-            reach the top number of the rep range in <B>every set</B>, not just the first one.
+            reach the top number of the rep range in <B>{two ? 'both sets' : 'every set'}</B>, not just the first one.
           </p>
         </div>
         <div className="flex items-center gap-2 pl-4 text-xs text-stone-500">
           <ArrowRight className="w-3.5 h-3.5 rotate-90 text-stone-400" />
-          <span>only once every set is at the top of the range</span>
+          <span>only once {two ? 'both sets are' : 'every set is'} at the top of the range</span>
         </div>
         <div className="rounded-xl border-2 border-orange-500 bg-orange-50 p-4">
           <div className="flex items-center gap-2.5">
@@ -2431,7 +2494,7 @@ function HowToRun({prog}){
             <span className="text-sm font-bold text-stone-900">Add weight</span>
           </div>
           <p className="mt-2 text-sm text-stone-700 leading-relaxed">
-            Increase by the smallest increment available, on every set. Your reps will drop back
+            Increase by the smallest increment available, on {two ? 'both sets' : 'every set'}. Your reps will drop back
             toward the bottom of the range. That is not a setback, it is the whole mechanism.
           </p>
         </div>
@@ -2441,26 +2504,30 @@ function HowToRun({prog}){
         </div>
       </div>
 
-      <P>Worked through in full, on an exercise prescribed as 3 sets of 6-8 reps.</P>
+      <P>Worked through in full, on an exercise prescribed as {n} sets of 6-8 reps.</P>
       <LogBlock title="Workout 1"
-        sets={[{load:'60 kg', reps:7}, {load:'57.5 kg', reps:7}, {load:'55 kg', reps:8, top:true}]}
-        verdict="No weight increase. Set 3 reached 8, but sets 1 and 2 stopped at 7. You need one more rep in each of them before anything changes. Next session you attack the same weights." />
+        sets={two
+          ? [{load:'60 kg', reps:7}, {load:'57.5 kg', reps:8, top:true}]
+          : [{load:'60 kg', reps:7}, {load:'57.5 kg', reps:7}, {load:'55 kg', reps:8, top:true}]}
+        verdict={two
+          ? 'No weight increase. Set 2 reached 8, but set 1 stopped at 7. You need one more rep there before anything changes. Next session you attack the same weights.'
+          : 'No weight increase. Set 3 reached 8, but sets 1 and 2 stopped at 7. You need one more rep in each of them before anything changes. Next session you attack the same weights.'} />
       <LogBlock title="Workout 2"
-        sets={[{load:'60 kg', reps:8, top:true}, {load:'57.5 kg', reps:8, top:true}, {load:'55 kg', reps:8, top:true}]}
+        sets={cut([{load:'60 kg', reps:8, top:true}, {load:'57.5 kg', reps:8, top:true}, {load:'55 kg', reps:8, top:true}])}
         go
-        verdict="Every set is at the top of the range. You have earned the increase. Next session, add the smallest increment available to all three sets. On a barbell that is usually 2.5 kg." />
+        verdict={`${two ? 'Both sets are' : 'Every set is'} at the top of the range. You have earned the increase. Next session, add the smallest increment available to ${all} sets. On a barbell that is usually 2.5 kg.`} />
       <LogBlock title="Workout 3"
-        sets={[{load:'62.5 kg', reps:7}, {load:'60 kg', reps:7}, {load:'57.5 kg', reps:7}]}
+        sets={cut([{load:'62.5 kg', reps:7}, {load:'60 kg', reps:7}, {load:'57.5 kg', reps:7}])}
         verdict="The extra 2.5 kg cost you a rep on each set, which is exactly what should happen. You are now back in step 1, building reps at a heavier load than you were handling three sessions ago. That is the progress." />
 
       <P>
         Straight sets work the same way. Nothing about the two steps changes, only the fact that the
-        load is the same across all sets.
+        load is the same across {two ? 'both' : 'all'} sets.
       </P>
-      <LogBlock title="Lateral Raise, 3 sets of 10-15 · three sessions in a row"
-        sets={[{load:'10 kg', reps:'14, 10, 9'}, {load:'10 kg', reps:'15, 13, 11'}, {load:'10 kg', reps:'15, 15, 15', top:true}]}
+      <LogBlock title={`Lateral Raise, ${n} sets of 10-15 · three sessions in a row`}
+        sets={[{load:'10 kg', reps:cutReps('14, 10, 9')}, {load:'10 kg', reps:cutReps('15, 13, 11')}, {load:'10 kg', reps:cutReps('15, 15, 15'), top:true}]}
         go
-        verdict="Three sessions at the same load, adding reps each time. On the third all three sets hit 15, so the next session moves up by the smallest increment and the rep count drops back into the low teens." />
+        verdict={`Three sessions at the same load, adding reps each time. On the third ${all} sets hit 15, so the next session moves up by the smallest increment and the rep count drops back into the low teens.`} />
 
       <H>Dumbbell exercises drop more reps</H>
       <P>
@@ -2468,13 +2535,13 @@ function HowToRun({prog}){
         per hand is a 5 kg jump in total, which is why dumbbell exercises are given wider rep ranges
         in your program. Expect to lose three or four reps after an increase rather than one or two.
       </P>
-      <LogBlock title="Incline Dumbbell Press, 3 sets of 6-10"
-        sets={[{load:'30 kg', reps:10, top:true}, {load:'27.5 kg', reps:10, top:true}, {load:'25 kg', reps:10, top:true}]}
+      <LogBlock title={`Incline Dumbbell Press, ${n} sets of 6-10`}
+        sets={cut([{load:'30 kg', reps:10, top:true}, {load:'27.5 kg', reps:10, top:true}, {load:'25 kg', reps:10, top:true}])}
         go
-        verdict="All sets at the top, so you go up 2.5 kg per hand next session. Loads shown are per hand." />
+        verdict={`${two ? 'Both' : 'All'} sets at the top, so you go up 2.5 kg per hand next session. Loads shown are per hand.`} />
       <LogBlock title="The session after"
-        sets={[{load:'32.5 kg', reps:6}, {load:'30 kg', reps:7}, {load:'27.5 kg', reps:7}]}
-        verdict="Reps fell by three to four because the total load went up by 5 kg. The wider rep range exists to absorb exactly this. Build back to 10 across all three sets to earn the next increase." />
+        sets={cut([{load:'32.5 kg', reps:6}, {load:'30 kg', reps:7}, {load:'27.5 kg', reps:7}])}
+        verdict={`Reps fell by three to four because the total load went up by 5 kg. The wider rep range exists to absorb exactly this. Build back to 10 across ${all} sets to earn the next increase.`} />
 
       <div className="mt-5 rounded-xl bg-stone-50 border border-stone-200 p-5">
         <div className="text-sm font-semibold text-stone-900">This is not training by feel</div>
@@ -2871,7 +2938,7 @@ function SplitBuilderScreen({state, setState, onBack, onFinish}){
               <p className="mt-2 text-[11px] text-stone-500 leading-relaxed">
                 {b.dayCount} workouts run in order at {freq} sessions a week, so each one comes up{' '}
                 {round1(freq / b.dayCount)} times a week on average and the cycle repeats every{' '}
-                {round1(b.dayCount / freq)} weeks. Volume below is the average.
+                {cycleSpan(b.dayCount, freq)}. Volume below is the average.
               </p>
             )}
 
@@ -3008,8 +3075,10 @@ function SplitBuilderScreen({state, setState, onBack, onFinish}){
   );
 }
 
-function ProgramScreen({prog, seq, owned, onSwapAt, onBack, onIssue, onRestart}){
+function ProgramScreen({prog, seq, owned, onSwapAt, onToggleSets, onBack, onIssue, onRestart}){
   const [swap, setSwap] = useState(null);
+  // What is shown and counted. The code and the swap menu stay on `prog`.
+  const view = cutSets(prog);
   const [copied, setCopied] = useState(false);
   const code = encodeAny(prog, seq);
   const copy = () => {
@@ -3033,7 +3102,7 @@ function ProgramScreen({prog, seq, owned, onSwapAt, onBack, onIssue, onRestart})
 
         <GapNotice holes={prog.unserviceable || []} />
 
-        <ProgramGlance prog={prog} />
+        <ProgramGlance prog={view} />
 
         {/* ---- the program ------------------------------------------- */}
         <div className="mt-10 pt-8 border-t border-stone-200">
@@ -3051,13 +3120,29 @@ function ProgramScreen({prog, seq, owned, onSwapAt, onBack, onIssue, onRestart})
             you can.
           </p>
 
+          {(prog.twoSets || canCutSets(prog)) && (
+            <div className="mt-6 rounded-xl border border-stone-200 bg-stone-50 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+              <p className="flex-1 text-sm text-stone-700 leading-relaxed">
+                {prog.twoSets
+                  ? <><span className="font-semibold text-stone-900">Sets are cut from 3 to 2.</span>{' '}
+                      Session times, weekly volume and the progression guide below all reflect two sets.</>
+                  : <><span className="font-semibold text-stone-900">Need to reduce workout duration?</span>{' '}
+                      Cut the sets from 3 to 2.</>}
+              </p>
+              <button onClick={onToggleSets}
+                className="flex-shrink-0 px-4 py-2 rounded-full bg-white border border-stone-300 hover:border-orange-500 hover:bg-orange-50 text-sm font-medium text-stone-900 transition-colors">
+                {prog.twoSets ? 'Go back to 3 sets' : 'Cut to 2 sets'}
+              </button>
+            </div>
+          )}
+
           <div className="mt-6 space-y-8">
-            {prog.days.map((d, di) => (
+            {view.days.map((d, di) => (
               <DayBlock key={di} day={d} index={di} detailed onSwap={ri => setSwap({di, ri})} />
             ))}
           </div>
 
-          <VolumeTracker prog={prog} />
+          <VolumeTracker prog={view} />
         </div>
 
         {/* ---- how to run it ----------------------------------------- */}
@@ -3069,7 +3154,7 @@ function ProgramScreen({prog, seq, owned, onSwapAt, onBack, onIssue, onRestart})
             reason for your body to change, and progression only works if you run it the same way
             every session. Read this once, properly.
           </p>
-          <HowToRun prog={prog} />
+          <HowToRun prog={view} />
         </div>
 
         {/* ---- the code ---------------------------------------------- */}
@@ -3079,8 +3164,8 @@ function ProgramScreen({prog, seq, owned, onSwapAt, onBack, onIssue, onRestart})
           <p className="mt-2 text-stone-600 text-sm leading-relaxed">
             This code is your program. Radu loads it into the ShredSmart app and every exercise, rep
             range, rest time and effort target comes across exactly as it appears above, so you can
-            start training and logging every set. Settle on your exercises first, because the code
-            changes every time you swap one.
+            start training and logging every set. Settle on your exercises and set count first,
+            because the code changes every time you change either.
           </p>
 
           <div className="mt-6 bg-stone-900 rounded-xl p-5">
@@ -3203,6 +3288,13 @@ export default function App(){
     if (issued){ setSeq(seq + 1); setIssued(false); }
   };
 
+  // Cutting sets changes the code just as a swap does, so it supersedes a
+  // copied code in the same way.
+  const toggleSets = () => {
+    setProg({ ...prog, twoSets: !prog.twoSets });
+    if (issued){ setSeq(seq + 1); setIssued(false); }
+  };
+
   const restart = () => {
     setScreen('home'); setSs1(null); setDays(null); setSkelId(null);
     setOwned(new Set()); setProg(null); setSeq(1); setIssued(false);
@@ -3252,7 +3344,7 @@ export default function App(){
         }} />;
       break;
     case 'program':
-      body = <ProgramScreen prog={prog} seq={seq} owned={owned} onSwapAt={swapAt}
+      body = <ProgramScreen prog={prog} seq={seq} owned={owned} onSwapAt={swapAt} onToggleSets={toggleSets}
         onBack={() => setScreen(returnTo)} onIssue={() => setIssued(true)} onRestart={restart} />;
       break;
     case 'load':
