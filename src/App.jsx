@@ -2267,8 +2267,10 @@ function ProgramGlance({prog}){
 // The execution rules, spelled out. This is the part clients get wrong, so it
 // is written to be read once in full rather than skimmed.
 // =====================================================
-const H = ({children}) => (
-  <h3 className="mt-10 text-xl font-bold text-stone-900">{children}</h3>
+// `newPage` starts the section on a fresh sheet when printed. It has no effect
+// on screen.
+const H = ({children, newPage}) => (
+  <h3 className={`mt-10 text-xl font-bold text-stone-900 ${newPage ? 'break-before-page print:mt-0' : ''}`}>{children}</h3>
 );
 
 const P = ({children}) => (
@@ -2317,6 +2319,14 @@ const LogBlock = ({title, sets, verdict, go}) => {
   );
 };
 
+// Side-by-side layout for the printed guide, where an A4 page is wide enough to
+// put related examples next to each other. In the app it renders its children
+// untouched, so the program page keeps its single column.
+const COLS = { 2:'grid-cols-2', 3:'grid-cols-3' };
+const Cols = ({on, n, children}) => on
+  ? <div className={`mt-4 grid ${COLS[n]} gap-3 items-start *:mt-0!`}>{children}</div>
+  : children;
+
 const EffortRow = ({icon, what, verdict, good}) => (
   <div className="flex gap-3 py-3 border-b border-stone-100 last:border-0">
     <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center mt-0.5 ${
@@ -2330,9 +2340,12 @@ const EffortRow = ({icon, what, verdict, good}) => (
   </div>
 );
 
-function HowToRun({prog}){
-  const s = programStats(prog);
-  const cautioned = s.rirCaution;
+// `generic` is the standalone version, printed to PDF and handed out with a
+// routine. There is no program on the page to count exercises in or point at,
+// so the sentences that do either are swapped for ones that stand on their own.
+function HowToRun({prog, generic = false}){
+  const s = generic ? null : programStats(prog);
+  const cautioned = generic ? 0 : s.rirCaution;
   // With sets cut to two, every worked example and every "all three sets"
   // below has to say two, or the guide contradicts the rows above it.
   const two = !!prog.twoSets;
@@ -2427,7 +2440,9 @@ function HowToRun({prog}){
           Every squat-type movement, hip hinge and hip thrust is in this group, along with barbell
           and dumbbell pressing, overhead work, weighted pull-ups and chin-ups, barbell rows and
           skullcrushers.
-          {cautioned > 0
+          {generic
+            ? ` The target is listed next to every exercise in your program, so you never have to remember which is which.`
+            : cautioned > 0
             ? ` ${cautioned} of your ${s.exerciseCount} exercises ${cautioned === 1 ? 'is' : 'are'} marked ${RIR_CAUTION} RIR, and the rest are ${RIR_DEFAULT}. The number is on every row above, so you never have to remember which is which.`
             : ` None of your exercises fall into this group, so every set in your program is ${RIR_DEFAULT} RIR.`}
         </p>
@@ -2440,6 +2455,7 @@ function HowToRun({prog}){
         weight between sets, and nothing else changes.
       </P>
 
+      <Cols on={generic} n={2}>
       <div className="mt-5 rounded-xl border border-stone-200 p-5">
         <div className="flex items-center gap-2.5">
           <ModelBadge model="RPT" />
@@ -2448,8 +2464,7 @@ function HowToRun({prog}){
         <P>
           Your heaviest set comes first, while you are fresh. Then you reduce the weight 5-10% for
           {two ? ' the second set' : ' each following set'}. Used on your compound lifts and anything else loaded heavily enough to
-          warrant it, which is {s.models.RPT} {s.models.RPT === 1 ? 'exercise' : 'exercises'} in your
-          program.
+          warrant it{generic ? '.' : `, which is ${s.models.RPT} ${s.models.RPT === 1 ? 'exercise' : 'exercises'} in your program.`}
         </P>
         <LogBlock title={`Incline Barbell Press, ${n} sets of 6-8`}
           sets={cut([{load:'60 kg', reps:8, top:true}, {load:'57.5 kg', reps:8, top:true}, {load:'55 kg', reps:8, top:true}])}
@@ -2472,15 +2487,16 @@ function HowToRun({prog}){
         <P>
           Same weight across {two ? 'both' : 'all'} sets. Used on isolation exercises and smaller muscles that recover
           well between sets, where an RPT drop would leave you lifting almost nothing by the
-          {two ? ' last' : ' third'} set. Used on {s.models.SS} {s.models.SS === 1 ? 'exercise' : 'exercises'} in your program.
+          {two ? ' last' : ' third'} set.{!generic && ` Used on ${s.models.SS} ${s.models.SS === 1 ? 'exercise' : 'exercises'} in your program.`}
         </P>
         <LogBlock title={`Dumbbell Lateral Raise, ${n} sets of 10-15`}
           sets={cut([{load:'10 kg', reps:14}, {load:'10 kg', reps:10}, {load:'10 kg', reps:9}])}
           verdict="Your reps drop across sets and that is expected. You hold the load and work on adding reps session to session." />
       </div>
+      </Cols>
 
       {/* ---- progression --------------------------------------------- */}
-      <H>3. How you progress: multi-set double progression</H>
+      <H newPage>3. How you progress: multi-set double progression</H>
       <P>
         This is the same on every exercise, RPT or SS. It is called double progression because you
         progress two things in a fixed order: first reps, then weight. Never both at once.
@@ -2518,6 +2534,7 @@ function HowToRun({prog}){
       </div>
 
       <P>Worked through in full, on an exercise prescribed as {n} sets of 6-8 reps.</P>
+      <Cols on={generic} n={3}>
       <LogBlock title="Workout 1"
         sets={two
           ? [{load:'60 kg', reps:7}, {load:'57.5 kg', reps:8, top:true}]
@@ -2532,6 +2549,7 @@ function HowToRun({prog}){
       <LogBlock title="Workout 3"
         sets={cut([{load:'62.5 kg', reps:7}, {load:'60 kg', reps:7}, {load:'57.5 kg', reps:7}])}
         verdict="The extra 2.5 kg cost you a rep on each set, which is exactly what should happen. You are now back in step 1, building reps at a heavier load than you were handling three sessions ago. That is the progress." />
+      </Cols>
 
       <P>
         Straight sets work the same way. Nothing about the two steps changes, only the fact that the
@@ -2554,6 +2572,7 @@ function HowToRun({prog}){
         per hand is a 5 kg jump in total, which is why dumbbell exercises are given wider rep ranges
         in your program. Expect to lose three or four reps after an increase rather than one or two.
       </P>
+      <Cols on={generic} n={2}>
       <LogBlock title={`Incline Dumbbell Press, ${n} sets of 6-10`}
         sets={cut([{load:'30 kg', reps:10, top:true}, {load:'27.5 kg', reps:10, top:true}, {load:'25 kg', reps:10, top:true}])}
         go
@@ -2561,14 +2580,14 @@ function HowToRun({prog}){
       <LogBlock title="The session after"
         sets={cut([{load:'32.5 kg', reps:6}, {load:'30 kg', reps:7}, {load:'27.5 kg', reps:7}])}
         verdict={`Reps fell by three to four because the total load went up by 5 kg. The wider rep range exists to absorb exactly this. Build back to 10 across ${all} sets to earn the next increase.`} />
+      </Cols>
 
       <div className="mt-5 rounded-xl bg-stone-50 border border-stone-200 p-5">
         <div className="text-sm font-semibold text-stone-900">This is not training by feel</div>
         <p className="mt-2 text-sm text-stone-600 leading-relaxed">
           Before every set you check what you did last time on that exercise and you try to beat it,
           by a rep or by an increment. Without a written record of every set you cannot do that, and
-          without that there is no progression. This is what the ShredSmart app is for once Radu has
-          loaded your code.
+          without that there is no progression. This is what the ShredSmart app is for{generic ? '.' : ' once Radu has loaded your code.'}
         </p>
       </div>
 
@@ -3221,6 +3240,83 @@ function ProgramScreen({prog, seq, owned, onSwapAt, onToggleSets, onBack, onIssu
   );
 }
 
+// =====================================================
+// GUIDE PAGE — the progression instructions on their own
+// Open the app with ?guide (or ?guide&sets=2 for the two-set wording) and print
+// to PDF. It renders the same HowToRun the program page does, so the PDF can
+// never drift from what clients read in the app. The print rules keep a card
+// or worked example from being split across two pages.
+// =====================================================
+function GuidePage({twoSets}){
+  const n = twoSets ? 2 : 3;
+  return (
+    <div className="min-h-screen bg-stone-200 print:bg-white">
+      <style>{`
+        @page {
+          size: A4; margin: 14mm 13mm 16mm;
+          @bottom-left  { content: "ShredSmart · How to run your program"; font: 8pt -apple-system, "Segoe UI", sans-serif; color: #a8a29e; }
+          @bottom-right { content: counter(page) " / " counter(pages); font: 8pt -apple-system, "Segoe UI", sans-serif; color: #a8a29e; }
+        }
+        @media print {
+          html, body { background: #fff; }
+          * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .rounded-xl, li { break-inside: avoid; }
+          h2, h3 { break-after: avoid; }
+          h3 + p { break-before: avoid; break-after: avoid; }
+        }
+      `}</style>
+
+      {/* screen only: what this page is, and the two things you can do with it */}
+      <div className="print:hidden sticky top-0 z-10 bg-white border-b border-stone-200 px-4 py-3 flex flex-wrap items-center gap-3">
+        <span className="text-sm text-stone-600 flex-1 min-w-0">
+          <span className="font-semibold text-stone-900">PDF preview.</span>{' '}
+          The sheet below is A4 width, so what you see is what prints.
+        </span>
+        <div className="flex rounded-full border border-stone-300 overflow-hidden text-sm">
+          {[3, 2].map(k => (
+            <a key={k} href={k === 2 ? '?guide&sets=2' : '?guide'}
+              className={`px-3.5 py-1.5 font-medium transition-colors ${k === n ? 'bg-stone-900 text-white' : 'text-stone-700 hover:bg-stone-100'}`}>
+              {k} sets
+            </a>
+          ))}
+        </div>
+        <button onClick={() => window.print()}
+          className="px-4 py-1.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium transition-colors">
+          Save as PDF
+        </button>
+      </div>
+
+      {/* the sheet: A4 wide with the print margins as padding, so line breaks on
+          screen match the PDF. Only the page breaks differ. */}
+      <div className="mx-auto my-6 w-[210mm] max-w-full bg-white shadow-md print:shadow-none print:my-0 print:w-auto">
+        {/* Slightly smaller than the app: print is read closer than a screen, and
+            it brings the guide down to four pages. */}
+        <div className="px-[13mm] py-[14mm] print:p-0" style={{ zoom: 0.9 }}>
+          <div className="flex items-center justify-between pb-4 border-b border-stone-200">
+            <div className="flex items-center gap-2.5">
+              <img src="/logo.png" alt="" className="w-8 h-8 rounded-lg" />
+              <span className="font-semibold text-stone-900 tracking-tight">ShredSmart</span>
+            </div>
+            <span className="text-xs font-medium text-stone-600 px-3 py-1 rounded-full bg-stone-100">
+              {n} sets per exercise
+            </span>
+          </div>
+          <div className="mt-7">
+            <Eyebrow>Read before your first session</Eyebrow>
+            <h2 className="mt-3 text-3xl font-bold text-stone-900">How to run your program.</h2>
+            <p className="mt-2 text-stone-600 text-sm leading-relaxed max-w-xl">
+              The exercises matter less than what you do with them. Without progression there is no
+              reason for your body to change, and progression only works if you run it the same way
+              every session. Read this once, properly.
+            </p>
+            <HowToRun prog={{ twoSets }} generic />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function LoadCodeScreen({onBack, onLoaded}){
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
@@ -3283,6 +3379,9 @@ export default function App(){
   }, []);
 
   const totalSteps = 3;
+
+  const guide = new URLSearchParams(window.location.search);
+  if (guide.has('guide')) return <GuidePage twoSets={guide.get('sets') === '2'} />;
 
   // A swap is a direct per-slot override. Ranges recompute for that day,
   // since the new exercise may carry different dumbbell / single-arm flags.
