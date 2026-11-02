@@ -1513,8 +1513,14 @@ function SplitScreen({days, onBack, onPick, step, total}){
             <div onClick={() => onPick(id)} role="button" tabIndex={0}
               onKeyDown={e => e.key === 'Enter' && onPick(id)}
               className="px-5 py-4 cursor-pointer hover:bg-orange-50 transition-colors">
-              <div className="font-semibold text-stone-900">{s.name}</div>
-              {s.tag && <div className="text-xs text-stone-500 mt-1">{s.tag}</div>}
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="font-semibold text-stone-900">{s.name}</span>
+                {s.tag && (
+                  <span className="px-2 py-0.5 rounded-full bg-orange-50 border border-orange-500 text-[11px] font-semibold text-orange-700 whitespace-nowrap">
+                    {s.tag}
+                  </span>
+                )}
+              </div>
               {s.rotates && (
                 <div className="text-xs text-stone-500 mt-1">
                   {`${s.days.length} workouts run in order, ${s.dayCount} sessions a week`}
