@@ -502,6 +502,8 @@ const S = (pattern, opts={}) => ({pattern, ...opts});
 // against its siblings at the same day count, never against a different day
 // count, because the day screen already covers what frequency buys and costs.
 //
+// `tag` is an optional short label shown under the name on the choice screen.
+//
 // `rotates` marks a split whose workouts run in sequence rather than on fixed
 // days. There, dayCount is sessions a week and days.length is the cycle length,
 // and weekFactor turns the two into an average weekly volume.
@@ -604,7 +606,21 @@ const SKELETONS = {
           'Sessions take longer due to more warm-ups and setup changes within each session.'] },
 
   // ---------- 4 days ----------
-  PPLU4:{ name:'Push · Pull · Legs · Upper', dayCount:4, days:[
+  PPLU4N:{ name:'Push · Pull · Legs · Upper', dayCount:4, days:[
+    { name:'Push', slots:[S('INCLINE_PRESS'),S('VERT_PUSH'),S('FLAT_PRESS'),S('TRI_OH'),S('SIDE_DELT')] },
+    { name:'Pull', slots:[S('VERT_PULL'),S('HORIZ_PULL'),S('HORIZ_PULL'),S('BICEPS'),S('REAR_DELT')] },
+    { name:'Legs', slots:[S('SQUAT'),S('HINGE'),S('LEG_EXT'),S('LEG_CURL'),S('CALF')] },
+    { name:'Upper Body', slots:[S('VERT_PUSH'),S('VERT_PULL'),S('INCLINE_PRESS'),S('BICEPS'),S('TRI_PUSHDOWN'),S('SIDE_DELT')] },
+  ],
+    pros:['The upper body lifts are well distributed and prioritized.',
+          'Upper-body is trained twice per week.',
+          'Arms are trained directly twice per week.',
+          'Exercises within each workout have a clear focus.'],
+    cons:['Lower-body receives comparatively less volume.',
+          'Lower-body is trained once per week.',
+          'Multiple pressing/pulling movements are performed in a row which leads to reduced performance in subsequent exercises.'] },
+
+  PPLU4:{ name:'Push · Pull · Legs · Upper', tag:'Low volume', dayCount:4, days:[
     { name:'Push', slots:[S('FLAT_PRESS'),S('INCLINE_PRESS'),S('TRI_OH'),S('SIDE_DELT')] },
     { name:'Pull', slots:[S('VERT_PULL'),S('HORIZ_PULL'),S('BICEPS'),S('REAR_DELT')] },
     { name:'Legs', slots:[S('SQUAT'),S('HINGE'),S('LEG_EXT'),S('LEG_CURL'),S('CALF')] },
@@ -1498,6 +1514,7 @@ function SplitScreen({days, onBack, onPick, step, total}){
               onKeyDown={e => e.key === 'Enter' && onPick(id)}
               className="px-5 py-4 cursor-pointer hover:bg-orange-50 transition-colors">
               <div className="font-semibold text-stone-900">{s.name}</div>
+              {s.tag && <div className="text-xs text-stone-500 mt-1">{s.tag}</div>}
               {s.rotates && (
                 <div className="text-xs text-stone-500 mt-1">
                   {`${s.days.length} workouts run in order, ${s.dayCount} sessions a week`}
