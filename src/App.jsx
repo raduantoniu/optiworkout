@@ -1658,6 +1658,77 @@ function SwapMenu({row, prog, di, ri, owned, onPick, onClose}){
   );
 }
 
+// What a client sees when adding an exercise. Grouped by muscle rather than by
+// movement pattern, because that is how the request arrives: "can I add abs?".
+// Small muscles lead, since that is what most additions should be.
+const ADD_GROUPS = [
+  ['Abs',['ABS']], ['Biceps',['BICEPS']], ['Triceps',['TRI_OH','TRI_PUSHDOWN']],
+  ['Side delts',['SIDE_DELT']], ['Rear delts',['REAR_DELT']], ['Traps',['TRAPS']],
+  ['Neck',['NECK_CURL','NECK_EXT']], ['Calves',['CALF']], ['Glutes',['GLUTE_ISO','GLUTE']],
+  ['Quads',['LEG_EXT','SQUAT']], ['Hamstrings',['LEG_CURL','HINGE']],
+  ['Chest',['CHEST_ISO','FLAT_PRESS','INCLINE_PRESS']], ['Back',['HORIZ_PULL','VERT_PULL']],
+  ['Shoulders',['VERT_PUSH']],
+];
+
+// Two steps: pick the muscle, then the exercise. Only what the client's
+// equipment allows is offered, in the same preference order as a swap.
+function AddExerciseMenu({day, prog, owned, onPick, onClose}){
+  const [group, setGroup] = useState(null);
+  const used = new Set(prog.days.flatMap(d => d.rows.map(r => r.exId).filter(Boolean)));
+  const optionsFor = pats => pats.flatMap(pat => (POOLS[pat] || []).filter(id => canEquip(id, owned)));
+  const groups = ADD_GROUPS.filter(([, pats]) => optionsFor(pats).length > 0);
+
+  return (
+    <Modal onClose={onClose}>
+      <div className="p-5 border-b border-stone-200 flex items-start justify-between gap-4">
+        <div>
+          <Eyebrow>{day.name}</Eyebrow>
+          <h3 className="mt-1.5 text-lg font-bold text-stone-900">
+            {group ? `Choose your ${group[0].toLowerCase()} exercise` : 'What do you want to add?'}
+          </h3>
+          <p className="text-xs text-stone-500 mt-1">
+            It goes at the end of this workout, with its sets, reps and rest filled in.
+          </p>
+        </div>
+        <button onClick={onClose} className="flex-shrink-0 w-8 h-8 rounded-full hover:bg-stone-100 flex items-center justify-center transition-colors">
+          <X className="w-4 h-4 text-stone-500" />
+        </button>
+      </div>
+      <div className="p-5 overflow-y-auto">
+        {!group ? (
+          <div className="grid grid-cols-2 gap-2">
+            {groups.map(g => (
+              <button key={g[0]} onClick={() => setGroup(g)}
+                className="px-4 py-3 rounded-xl border border-stone-200 hover:border-orange-500 hover:bg-orange-50 text-sm font-medium text-stone-900 text-left transition-colors">
+                {g[0]}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <button onClick={() => setGroup(null)}
+              className="text-sm font-medium text-orange-700 hover:text-orange-800 flex items-center gap-1.5 mb-2 transition-colors">
+              <ArrowLeft className="w-4 h-4" /> Pick a different muscle
+            </button>
+            {optionsFor(group[1]).map(id => (
+              <button key={id} onClick={() => onPick(id)}
+                className="w-full text-left p-3 rounded-xl border border-stone-200 hover:border-orange-500 hover:bg-orange-50 transition-colors flex gap-3">
+                <ExerciseImage exId={id} className="w-28 sm:w-32 flex-shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-stone-900">{EXERCISES[id][0]}</div>
+                  <div className="text-xs text-stone-500 mt-1 leading-relaxed">
+                    {used.has(id) ? 'Already elsewhere in your week' : 'Available in your gym'}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
 // ---- one exercise row, shared by review + final --------------------
 // Detailed mode is the execution view: it carries everything you need at the
 // rack, including which set model the exercise runs on and its effort target,
@@ -1682,7 +1753,7 @@ const ModelBadge = ({model}) => {
   );
 };
 
-const ExerciseRow = ({row, onSwap, detailed}) => {
+const ExerciseRow = ({row, onSwap, onRemove, detailed}) => {
   if (!row.exId) return (
     <div className="flex items-center gap-3 px-4 py-3">
       <div className="flex-1">
@@ -1716,6 +1787,12 @@ const ExerciseRow = ({row, onSwap, detailed}) => {
                   Swap
                 </button>
               )}
+              {onRemove && (
+                <button onClick={onRemove}
+                  className="text-sm font-medium text-stone-500 hover:text-stone-900 transition-colors">
+                  Remove
+                </button>
+              )}
             </div>
           </div>
           {!detailed && (
@@ -1739,7 +1816,7 @@ const ExerciseRow = ({row, onSwap, detailed}) => {
 // A day of the program in execution view. Each day is its own card with a
 // numbered header, so days read as separate blocks when the page is scrolled
 // rather than blurring into one long list.
-const DayBlock = ({day, index, detailed, onSwap}) => {
+const DayBlock = ({day, index, detailed, onSwap, onAdd, onRemove}) => {
   const count = day.rows.filter(r => r.exId).length;
   const optional = /optional/i.test(day.name || '');
   const mins = Math.round(dayStats(day).minutes / 5) * 5;
@@ -1761,9 +1838,16 @@ const DayBlock = ({day, index, detailed, onSwap}) => {
       <div className="divide-y divide-stone-100">
         {day.rows.map((r, ri) => (
           <ExerciseRow key={ri} row={r} detailed={detailed}
-            onSwap={onSwap && r.exId ? () => onSwap(ri) : null} />
+            onSwap={onSwap && r.exId ? () => onSwap(ri) : null}
+            onRemove={onRemove && r.added ? () => onRemove(ri) : null} />
         ))}
       </div>
+      {onAdd && (
+        <button onClick={onAdd}
+          className="w-full px-4 py-3 border-t border-stone-100 text-sm font-medium text-orange-600 hover:text-orange-700 hover:bg-orange-50 flex items-center justify-center gap-1.5 transition-colors">
+          <Plus className="w-4 h-4" /> Add exercise
+        </button>
+      )}
     </div>
   );
 };
@@ -2785,7 +2869,7 @@ function BuilderCard({row, held, onHold, onDragStart, onDragEnd, onDropOn, onEdi
   );
 }
 
-function SplitBuilderScreen({state, setState, onBack, onFinish}){
+function SplitBuilderScreen({state, setState, adjusting, onBack, onFinish}){
   const b = state;
   const [picker, setPicker] = useState(null);
   const [held, setHeld] = useState(null);
@@ -2917,7 +3001,9 @@ function SplitBuilderScreen({state, setState, onBack, onFinish}){
       <Card className="max-w-[1400px]">
         <BackButton onClick={onBack} />
         <Eyebrow>Split builder</Eyebrow>
-        <h2 className="mt-3 text-2xl font-bold text-stone-900">Build a custom split.</h2>
+        <h2 className="mt-3 text-2xl font-bold text-stone-900">
+          {adjusting ? 'Adjust your program.' : 'Build a custom split.'}
+        </h2>
         <p className="mt-2 text-stone-600 text-sm leading-relaxed max-w-2xl">
           Pick a movement pattern to choose an exercise. It lands in the weekly pool, and the volume
           tracker counts it straight away. Drag from the pool into a workout to build the split. On a
@@ -3130,8 +3216,9 @@ function SplitBuilderScreen({state, setState, onBack, onFinish}){
   );
 }
 
-function ProgramScreen({prog, seq, owned, onSwapAt, onToggleSets, onBack, onIssue, onRestart}){
+function ProgramScreen({prog, seq, owned, onSwapAt, onAddAt, onRemoveAt, onToggleSets, onAdjust, onBack, onIssue, onRestart}){
   const [swap, setSwap] = useState(null);
+  const [adding, setAdding] = useState(null);
   // What is shown and counted. The code and the swap menu stay on `prog`.
   const view = cutSets(prog);
   const [copied, setCopied] = useState(false);
@@ -3172,15 +3259,22 @@ function ProgramScreen({prog, seq, owned, onSwapAt, onToggleSets, onBack, onIssu
             If an exercise does not work for you, because you cannot do it, you do not like it, or
             it is never free when you train, hit Swap and pick another variation of the same
             movement. Options are listed in order of recommendation, so choose from the top where
-            you can.
+            you can. To add something extra, hit Add exercise at the bottom of any workout.
           </p>
 
+          <div className="mt-6 space-y-8">
+            {view.days.map((d, di) => (
+              <DayBlock key={di} day={d} index={di} detailed onSwap={ri => setSwap({di, ri})}
+                onAdd={() => setAdding(di)} onRemove={ri => onRemoveAt(di, ri)} />
+            ))}
+          </div>
+
           {(prog.twoSets || canCutSets(prog)) && (
-            <div className="mt-6 rounded-xl border border-stone-200 bg-stone-50 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="mt-8 rounded-xl border border-stone-200 bg-stone-50 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
               <p className="flex-1 text-sm text-stone-700 leading-relaxed">
                 {prog.twoSets
                   ? <><span className="font-semibold text-stone-900">Sets are cut from 3 to 2.</span>{' '}
-                      Session times, weekly volume and the progression guide below all reflect two sets.</>
+                      Session times, weekly volume and the progression guide all reflect two sets.</>
                   : <><span className="font-semibold text-stone-900">Need to reduce workout duration?</span>{' '}
                       Cut the sets from 3 to 2.</>}
               </p>
@@ -3191,10 +3285,15 @@ function ProgramScreen({prog, seq, owned, onSwapAt, onToggleSets, onBack, onIssu
             </div>
           )}
 
-          <div className="mt-6 space-y-8">
-            {view.days.map((d, di) => (
-              <DayBlock key={di} day={d} index={di} detailed onSwap={ri => setSwap({di, ri})} />
-            ))}
+          <div className="mt-4 rounded-xl border border-stone-200 bg-stone-50 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+            <p className="flex-1 text-sm text-stone-700 leading-relaxed">
+              <span className="font-semibold text-stone-900">Need a bigger change?</span>{' '}
+              Open your program in the editor to remove exercises, reorder them or move them between days.
+            </p>
+            <button onClick={onAdjust}
+              className="flex-shrink-0 px-4 py-2 rounded-full bg-white border border-stone-300 hover:border-orange-500 hover:bg-orange-50 text-sm font-medium text-stone-900 transition-colors">
+              Adjust program
+            </button>
           </div>
 
           <VolumeTracker prog={view} />
@@ -3252,6 +3351,12 @@ function ProgramScreen({prog, seq, owned, onSwapAt, onToggleSets, onBack, onIssu
         <SwapMenu row={prog.days[swap.di].rows[swap.ri]} prog={prog} di={swap.di} ri={swap.ri} owned={owned}
           onClose={() => setSwap(null)}
           onPick={id => { onSwapAt(swap.di, swap.ri, id); setSwap(null); }} />
+      )}
+
+      {adding !== null && (
+        <AddExerciseMenu day={prog.days[adding]} prog={prog} owned={owned}
+          onClose={() => setAdding(null)}
+          onPick={id => { onAddAt(adding, id); setAdding(null); }} />
       )}
     </>
   );
@@ -3374,6 +3479,8 @@ export default function App(){
   const [prog, setProg] = useState(null);
   const [seq, setSeq] = useState(1);
   const [builder, setBuilder] = useState(emptyBuilder);
+  // Where Back from the builder goes. Adjusting a program returns to it unchanged.
+  const [builderFrom, setBuilderFrom] = useState('home');
   // Where Back from the program page goes. A custom split returns to the
   // builder with its state intact; a resolved one returns to the equipment step.
   const [returnTo, setReturnTo] = useState('equipment');
@@ -3409,38 +3516,66 @@ export default function App(){
       ...d, rows: d.rows.map((r, j) => j !== ri ? r
         : { ...r, exId:newExId, slot:{ ...r.slot, pattern: PATTERN_OF[newExId] || r.slot.pattern } })
     });
-    const counters = {};
-    days2[di] = { ...days2[di], rows: days2[di].rows.map(r => {
-      if (!r.exId) return r;
-      // Defaults recompute for the whole day, then anything edited by hand in
-      // the builder is laid back over the top.
-      return { ...r, ...autoSpec(r.slot.pattern, r.exId, counters), ...(r.ov || {}) };
-    })};
+    days2[di] = refreshDay(days2[di]);
     setProg({ ...prog, days: days2 });
-    // Only the first change after a copy supersedes what was sent. Further
-    // swaps before the next copy are part of the same revision, so the
-    // sequence number tracks codes actually issued, not edits made.
-    if (issued){ setSeq(seq + 1); setIssued(false); }
+    supersede();
+  };
+
+  // Defaults recompute for the whole day, then anything edited by hand in the
+  // builder is laid back over the top.
+  const refreshDay = day => {
+    const counters = {};
+    return { ...day, rows: day.rows.map(r => r.exId
+      ? { ...r, ...autoSpec(r.slot.pattern, r.exId, counters), ...(r.ov || {}) } : r) };
+  };
+
+  // Only the first change after a copy supersedes what was sent. Further
+  // changes before the next copy are part of the same revision, so the
+  // sequence number tracks codes actually issued, not edits made.
+  const supersede = () => { if (issued){ setSeq(seq + 1); setIssued(false); } };
+
+  // An added exercise no longer fits the skeleton, so an OP1 code can't hold
+  // it. The program becomes custom from here on, and encodes as OPC1.
+  const addAt = (di, exId) => {
+    const row = { slot:{ pattern:PATTERN_OF[exId] }, exId, uid:newUid(), ov:{}, added:true };
+    setProg({ ...prog, custom:true, days: prog.days.map((d, i) => i !== di ? d
+      : refreshDay({ ...d, rows:[...d.rows, row] })) });
+    supersede();
+  };
+
+  const removeAt = (di, ri) => {
+    setProg({ ...prog, days: prog.days.map((d, i) => i !== di ? d
+      : refreshDay({ ...d, rows: d.rows.filter((_, j) => j !== ri) })) });
+    supersede();
   };
 
   // Cutting sets changes the code just as a swap does, so it supersedes a
   // copied code in the same way.
   const toggleSets = () => {
     setProg({ ...prog, twoSets: !prog.twoSets });
-    if (issued){ setSeq(seq + 1); setIssued(false); }
+    supersede();
   };
 
   const restart = () => {
     setScreen('home'); setSs1(null); setDays(null); setSkelId(null);
     setOwned(new Set()); setProg(null); setSeq(1); setIssued(false);
-    setBuilder(emptyBuilder()); setReturnTo('equipment');
+    setBuilder(emptyBuilder()); setBuilderFrom('home'); setReturnTo('equipment');
+  };
+
+  const openBuilder = () => { setBuilderFrom('home'); setScreen('builder'); };
+
+  // Opens the current program in the builder. As with a swap, the sequence only
+  // moves if a code has been copied since the last change.
+  const adjustProgram = () => {
+    setBuilder({ ...programToBuilder(prog), seq: issued ? seq + 1 : seq });
+    setBuilderFrom('program'); setScreen('builder');
   };
 
   let body;
   switch (screen){
     case 'home':
       body = <HomeScreen onContinue={() => setScreen('paste')} onCustom={() => setScreen('days')}
-        onReload={() => setScreen('load')} onBuild={() => setScreen('builder')} />;
+        onReload={() => setScreen('load')} onBuild={openBuilder} />;
       break;
     case 'paste':
       body = <PasteCodeScreen onBack={() => setScreen('home')} onDecoded={r => { setSs1(r); setScreen('ack'); }} />;
@@ -3471,16 +3606,19 @@ export default function App(){
       break;
     case 'builder':
       body = <SplitBuilderScreen state={builder} setState={setBuilder}
-        onBack={() => setScreen('home')}
+        adjusting={builderFrom === 'program'}
+        onBack={() => setScreen(builderFrom)}
         onFinish={() => {
           setProg(buildCustomProgram(builder));
-          setOwned(PRESET_FULL); setSeq(builder.seq || 1); setIssued(false);
-          setReturnTo('builder'); setScreen('program');
+          // A client adjusting their program keeps the equipment they chose.
+          if (!owned.size) setOwned(PRESET_FULL);
+          setSeq(builder.seq || 1); setIssued(false);
+          setBuilderFrom('home'); setReturnTo('builder'); setScreen('program');
         }} />;
       break;
     case 'program':
-      body = <ProgramScreen prog={prog} seq={seq} owned={owned} onSwapAt={swapAt} onToggleSets={toggleSets}
-        onBack={() => setScreen(returnTo)} onIssue={() => setIssued(true)} onRestart={restart} />;
+      body = <ProgramScreen prog={prog} seq={seq} owned={owned} onSwapAt={swapAt} onAddAt={addAt} onRemoveAt={removeAt}
+        onToggleSets={toggleSets} onAdjust={adjustProgram} onBack={() => setScreen(returnTo)} onIssue={() => setIssued(true)} onRestart={restart} />;
       break;
     case 'load':
       body = <LoadCodeScreen onBack={() => setScreen('home')}
@@ -3489,7 +3627,7 @@ export default function App(){
       break;
     default:
       body = <HomeScreen onContinue={() => setScreen('paste')} onCustom={() => setScreen('days')}
-        onReload={() => setScreen('load')} onBuild={() => setScreen('builder')} />;
+        onReload={() => setScreen('load')} onBuild={openBuilder} />;
   }
 
   // centre the short screens; let the long program lists start at the top
